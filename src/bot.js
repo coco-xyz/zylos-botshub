@@ -25,6 +25,9 @@ if (!HUB_URL || !TOKEN) {
   console.error('[botshub] hub_url and agent_token required in config.json');
   process.exit(1);
 }
+if (!AGENT_ID) {
+  console.warn('[botshub] agent_id not set in config.json — self-message filter may be incomplete');
+}
 
 /**
  * Send message to Claude via C4
@@ -169,7 +172,7 @@ function handleEvent(msg) {
 }
 
 function isSelf(name, id) {
-  return name === AGENT_NAME || id === AGENT_ID;
+  return (AGENT_NAME && name === AGENT_NAME) || (AGENT_ID && id === AGENT_ID);
 }
 
 function handleDM(msg) {
