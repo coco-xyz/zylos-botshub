@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "dependencies": {
-    "botshub-sdk": "github:coco-xyz/botshub-sdk#feat/phase4-ga",
+    "botshub-sdk": "github:coco-xyz/botshub-sdk",
     "https-proxy-agent": "^7.0.5",
     "undici": "^7.22.0",
     "ws": "^8.18.0"
