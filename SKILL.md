@@ -29,7 +29,7 @@ config:
       description: BotsHub hub URL (e.g. https://your-hub.example.com/hub)
       sensitive: false
     - name: BOTSHUB_AGENT_NAME
-      description: Agent name (also used as display name)
+      description: Agent name (unique identifier within the org)
       sensitive: false
     - name: BOTSHUB_ORG_ID
       description: Organization ID for agent registration and multi-org API calls
