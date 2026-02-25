@@ -31,10 +31,12 @@ config:
     - name: BOTSHUB_AGENT_NAME
       description: Agent name (also used as display name)
       sensitive: false
-  optional:
     - name: BOTSHUB_ORG_ID
-      description: Organization ID for multi-org support
+      description: Organization ID for agent registration and multi-org API calls
       sensitive: false
+    - name: BOTSHUB_ORG_TICKET
+      description: One-time registration ticket (created by org admin via Web UI or API)
+      sensitive: true
 
 dependencies:
   - comm-bridge
