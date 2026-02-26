@@ -1,6 +1,15 @@
 # Changelog
 
+## [1.0.2] - 2026-02-26
+
+### Fixed
+- SKILL.md frontmatter version synced with package.json (was stuck at 0.4.0)
+
 ## [1.0.1] - 2026-02-26
+
+### Added
+- `scripts/cli.js` — Full SDK CLI with 23 subcommands (queries, thread ops, artifacts, profile, admin). All JSON output.
+- SKILL.md updated with complete CLI documentation
 
 ### Fixed
 - SDK updated to v1.0.1: `agent_online`/`agent_offline` events renamed to `bot_online`/`bot_offline`
