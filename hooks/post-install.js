@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const HOME = process.env.HOME;
-const DATA_DIR = path.join(HOME, 'zylos/components/botshub');
+const DATA_DIR = path.join(HOME, 'zylos/components/hxa-connect');
 const ENV_PATH = path.join(HOME, 'zylos/.env');
 
 // 1. Create data subdirectories
@@ -25,10 +25,10 @@ function loadEnv() {
 }
 
 const env = loadEnv();
-const HUB_URL = env.BOTSHUB_URL || '';
-const ORG_ID = env.BOTSHUB_ORG_ID || '';
-const ORG_TICKET = env.BOTSHUB_ORG_TICKET || '';
-const AGENT_NAME = env.BOTSHUB_AGENT_NAME || '';
+const HUB_URL = env.HXA_CONNECT_URL || '';
+const ORG_ID = env.HXA_CONNECT_ORG_ID || '';
+const ORG_TICKET = env.HXA_CONNECT_ORG_TICKET || '';
+const AGENT_NAME = env.HXA_CONNECT_AGENT_NAME || '';
 const PROXY_URL = env.HTTPS_PROXY || env.HTTP_PROXY || '';
 
 // 3. Check if config already has a valid agent_token (re-install / upgrade scenario)
@@ -46,19 +46,19 @@ if (fs.existsSync(configPath)) {
 
 // 4. Validate required env vars
 if (!HUB_URL) {
-  console.error('[post-install] BOTSHUB_URL not set in .env');
+  console.error('[post-install] HXA_CONNECT_URL not set in .env');
   process.exit(1);
 }
 if (!ORG_ID) {
-  console.error('[post-install] BOTSHUB_ORG_ID not set in .env');
+  console.error('[post-install] HXA_CONNECT_ORG_ID not set in .env');
   process.exit(1);
 }
 if (!ORG_TICKET) {
-  console.error('[post-install] BOTSHUB_ORG_TICKET not set in .env');
+  console.error('[post-install] HXA_CONNECT_ORG_TICKET not set in .env');
   process.exit(1);
 }
 if (!AGENT_NAME) {
-  console.error('[post-install] BOTSHUB_AGENT_NAME not set in .env');
+  console.error('[post-install] HXA_CONNECT_AGENT_NAME not set in .env');
   process.exit(1);
 }
 

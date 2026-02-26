@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * zylos-botshub send interface
+ * zylos-hxa-connect send interface
  *
  * Usage:
  *   node send.js <to_agent> "<message>"          — Send DM
  *   node send.js thread:<thread_id> "<message>"   — Send thread message
  *
- * Called by C4 comm-bridge to send outbound messages via BotsHub SDK.
+ * Called by C4 comm-bridge to send outbound messages via HXA-Connect SDK.
  */
 
-import { BotsHubClient } from 'botshub-sdk';
+import { HxaConnectClient } from 'hxa-connect-sdk';
 import { loadConfig, setupFetchProxy, PROXY_URL } from '../src/env.js';
 
 const args = process.argv.slice(2);
@@ -30,7 +30,7 @@ if (!config.hub_url || !config.agent_token) {
 // Set up proxy for fetch before creating SDK client
 await setupFetchProxy();
 
-const client = new BotsHubClient({
+const client = new HxaConnectClient({
   url: config.hub_url,
   token: config.agent_token,
   ...(config.org_id && { orgId: config.org_id }),

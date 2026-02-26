@@ -1,12 +1,12 @@
 /**
- * zylos-botshub - BotsHub WebSocket client for Zylos Agent
- * Connects to a BotsHub hub via SDK and bridges messages to C4.
+ * zylos-hxa-connect - HXA-Connect WebSocket client for Zylos Bot
+ * Connects to an HXA-Connect hub via SDK and bridges messages to C4.
  *
  * Handles: DM, channel messages, threads, artifacts, participant events.
- * Uses botshub-sdk for WS (ticket exchange, auto-reconnect, 1012 support).
+ * Uses hxa-connect-sdk for WS (ticket exchange, auto-reconnect, 1012 support).
  */
 
-import { BotsHubClient } from 'botshub-sdk';
+import { HxaConnectClient } from 'hxa-connect-sdk';
 import { exec } from 'child_process';
 import path from 'path';
 import { HttpsProxyAgent } from 'https-proxy-agent';
@@ -23,15 +23,15 @@ const AGENT_NAME = config.agent_name;
 const AGENT_ID = config.agent_id;
 
 if (!HUB_URL || !TOKEN) {
-  console.error('[botshub] hub_url and agent_token required in config.json');
+  console.error('[hxa-connect] hub_url and agent_token required in config.json');
   process.exit(1);
 }
 if (!ORG_ID) {
-  console.error('[botshub] org_id required in config.json');
+  console.error('[hxa-connect] org_id required in config.json');
   process.exit(1);
 }
 if (!AGENT_ID) {
-  console.warn('[botshub] agent_id not set in config.json — self-message filter may be incomplete');
+  console.warn('[hxa-connect] agent_id not set in config.json — self-message filter may be incomplete');
 }
 
 // Set up proxy for fetch (HTTP requests via SDK)
@@ -40,7 +40,7 @@ await setupFetchProxy();
 // Build WS options (proxy agent for Node.js ws)
 const wsOptions = PROXY_URL ? { agent: new HttpsProxyAgent(PROXY_URL) } : undefined;
 
-const client = new BotsHubClient({
+const client = new HxaConnectClient({
   url: HUB_URL,
   token: TOKEN,
   orgId: ORG_ID,
@@ -62,23 +62,23 @@ function sendToC4(source, endpoint, content) {
 
   exec(cmd, { encoding: 'utf8' }, (error, stdout) => {
     if (!error) {
-      console.log(`[botshub] → C4: ${content.substring(0, 80)}...`);
+      console.log(`[hxa-connect] → C4: ${content.substring(0, 80)}...`);
       return;
     }
     // Parse structured rejection
     try {
       const response = JSON.parse(error.stdout || stdout || '{}');
       if (response.ok === false && response.error?.message) {
-        console.warn(`[botshub] C4 rejected: ${response.error.message}`);
+        console.warn(`[hxa-connect] C4 rejected: ${response.error.message}`);
         return;
       }
     } catch {}
     // Retry once
-    console.warn(`[botshub] C4 send failed, retrying: ${error.message}`);
+    console.warn(`[hxa-connect] C4 send failed, retrying: ${error.message}`);
     setTimeout(() => {
       exec(cmd, { encoding: 'utf8' }, (retryErr) => {
-        if (retryErr) console.error(`[botshub] C4 retry failed: ${retryErr.message}`);
-        else console.log(`[botshub] → C4 (retry): ${content.substring(0, 80)}...`);
+        if (retryErr) console.error(`[hxa-connect] C4 retry failed: ${retryErr.message}`);
+        else console.log(`[hxa-connect] → C4 (retry): ${content.substring(0, 80)}...`);
       });
     }, 2000);
   });
@@ -95,9 +95,9 @@ client.on('message', (msg) => {
   const content = msg.message?.content || msg.content || '';
   if (isSelf(msg.message?.sender_id)) return;
 
-  console.log(`[botshub] DM from ${sender}: ${content.substring(0, 80)}`);
-  const formatted = `[BotsHub DM] ${sender} said: ${content}`;
-  sendToC4('botshub', sender, formatted);
+  console.log(`[hxa-connect] DM from ${sender}: ${content.substring(0, 80)}`);
+  const formatted = `[HXA-Connect DM] ${sender} said: ${content}`;
+  sendToC4('hxa-connect', sender, formatted);
 });
 
 client.on('channel_message', (msg) => {
@@ -107,19 +107,19 @@ client.on('channel_message', (msg) => {
   const content = msg.message?.content || msg.content || '';
   if (isSelf(msg.message?.sender_id)) return;
 
-  console.log(`[botshub] Channel ${channelName} from ${sender}: ${content.substring(0, 80)}`);
-  const formatted = `[BotsHub GROUP:${channelName}] ${sender} said: ${content}`;
-  sendToC4('botshub', `channel:${channel}`, formatted);
+  console.log(`[hxa-connect] Channel ${channelName} from ${sender}: ${content.substring(0, 80)}`);
+  const formatted = `[HXA-Connect GROUP:${channelName}] ${sender} said: ${content}`;
+  sendToC4('hxa-connect', `channel:${channel}`, formatted);
 });
 
 client.on('thread_created', (msg) => {
   const thread = msg.thread || {};
   const topic = thread.topic || 'untitled';
   const tags = thread.tags?.length ? thread.tags.join(', ') : 'none';
-  console.log(`[botshub] Thread created: "${topic}" (tags: ${tags})`);
+  console.log(`[hxa-connect] Thread created: "${topic}" (tags: ${tags})`);
 
-  const formatted = `[BotsHub Thread] New thread created: "${topic}" (tags: ${tags}, id: ${thread.id})`;
-  sendToC4('botshub', `thread:${thread.id}`, formatted);
+  const formatted = `[HXA-Connect Thread] New thread created: "${topic}" (tags: ${tags}, id: ${thread.id})`;
+  sendToC4('hxa-connect', `thread:${thread.id}`, formatted);
 });
 
 client.on('thread_message', (msg) => {
@@ -129,29 +129,29 @@ client.on('thread_message', (msg) => {
   const content = message.content || '';
   if (isSelf(message.sender_id)) return;
 
-  console.log(`[botshub] Thread ${threadId} from ${sender}: ${content.substring(0, 80)}`);
-  const formatted = `[BotsHub Thread:${threadId}] ${sender} said: ${content}`;
-  sendToC4('botshub', `thread:${threadId}`, formatted);
+  console.log(`[hxa-connect] Thread ${threadId} from ${sender}: ${content.substring(0, 80)}`);
+  const formatted = `[HXA-Connect Thread:${threadId}] ${sender} said: ${content}`;
+  sendToC4('hxa-connect', `thread:${threadId}`, formatted);
 });
 
 client.on('thread_updated', (msg) => {
   const thread = msg.thread || {};
   const changes = msg.changes || [];
   const topic = thread.topic || 'untitled';
-  console.log(`[botshub] Thread updated: "${topic}" changes: ${changes.join(', ')}`);
+  console.log(`[hxa-connect] Thread updated: "${topic}" changes: ${changes.join(', ')}`);
 
-  const formatted = `[BotsHub Thread:${thread.id}] Thread "${topic}" updated: ${changes.join(', ')} (status: ${thread.status})`;
-  sendToC4('botshub', `thread:${thread.id}`, formatted);
+  const formatted = `[HXA-Connect Thread:${thread.id}] Thread "${topic}" updated: ${changes.join(', ')} (status: ${thread.status})`;
+  sendToC4('hxa-connect', `thread:${thread.id}`, formatted);
 });
 
 client.on('thread_artifact', (msg) => {
   const threadId = msg.thread_id;
   const artifact = msg.artifact || {};
   const action = msg.action || 'added';
-  console.log(`[botshub] Thread ${threadId} artifact ${action}: ${artifact.artifact_key}`);
+  console.log(`[hxa-connect] Thread ${threadId} artifact ${action}: ${artifact.artifact_key}`);
 
-  const formatted = `[BotsHub Thread:${threadId}] Artifact ${action}: "${artifact.title || artifact.artifact_key}" (type: ${artifact.type})`;
-  sendToC4('botshub', `thread:${threadId}`, formatted);
+  const formatted = `[HXA-Connect Thread:${threadId}] Artifact ${action}: "${artifact.title || artifact.artifact_key}" (type: ${artifact.type})`;
+  sendToC4('hxa-connect', `thread:${threadId}`, formatted);
 });
 
 client.on('thread_participant', (msg) => {
@@ -160,40 +160,40 @@ client.on('thread_participant', (msg) => {
   const action = msg.action; // 'joined' or 'left'
   const by = msg.by ? ` (by ${msg.by})` : '';
   const label = msg.label ? ` [${msg.label}]` : '';
-  console.log(`[botshub] Thread ${threadId}: ${botName} ${action}${by}`);
+  console.log(`[hxa-connect] Thread ${threadId}: ${botName} ${action}${by}`);
 
-  const formatted = `[BotsHub Thread:${threadId}] ${botName}${label} ${action} the thread${by}`;
-  sendToC4('botshub', `thread:${threadId}`, formatted);
+  const formatted = `[HXA-Connect Thread:${threadId}] ${botName}${label} ${action} the thread${by}`;
+  sendToC4('hxa-connect', `thread:${threadId}`, formatted);
 });
 
 client.on('channel_deleted', (msg) => {
-  console.log(`[botshub] Channel deleted: ${msg.channel_id}`);
+  console.log(`[hxa-connect] Channel deleted: ${msg.channel_id}`);
 });
 
 client.on('agent_online', (msg) => {
-  console.log(`[botshub] ${msg.agent?.name || msg.agent?.id || 'unknown'} is online`);
+  console.log(`[hxa-connect] ${msg.agent?.name || msg.agent?.id || 'unknown'} is online`);
 });
 
 client.on('agent_offline', (msg) => {
-  console.log(`[botshub] ${msg.agent?.name || msg.agent?.id || 'unknown'} is offline`);
+  console.log(`[hxa-connect] ${msg.agent?.name || msg.agent?.id || 'unknown'} is offline`);
 });
 
 // ─── Connection Lifecycle ──────────────────────────────────
 
 client.on('reconnecting', ({ attempt, delay }) => {
-  console.log(`[botshub] Reconnecting (attempt ${attempt}, delay ${delay}ms)...`);
+  console.log(`[hxa-connect] Reconnecting (attempt ${attempt}, delay ${delay}ms)...`);
 });
 
 client.on('reconnected', ({ attempts }) => {
-  console.log(`[botshub] Reconnected after ${attempts} attempt(s)`);
+  console.log(`[hxa-connect] Reconnected after ${attempts} attempt(s)`);
 });
 
 client.on('reconnect_failed', ({ attempts }) => {
-  console.error(`[botshub] Reconnect failed after ${attempts} attempts`);
+  console.error(`[hxa-connect] Reconnect failed after ${attempts} attempts`);
 });
 
 client.on('error', (err) => {
-  console.error(`[botshub] Error: ${err?.message || err}`);
+  console.error(`[hxa-connect] Error: ${err?.message || err}`);
 });
 
 // Catch-all: log unhandled event types for observability
@@ -205,16 +205,16 @@ const HANDLED_EVENTS = new Set([
 ]);
 client.on('*', (msg) => {
   if (msg?.type && !HANDLED_EVENTS.has(msg.type)) {
-    console.log(`[botshub] Unhandled event: ${msg.type}`, JSON.stringify(msg).substring(0, 200));
+    console.log(`[hxa-connect] Unhandled event: ${msg.type}`, JSON.stringify(msg).substring(0, 200));
   }
 });
 
 // ─── Start ────────────────────────────────────────────────
 
-console.log(`[botshub] zylos-botshub starting as "${AGENT_NAME}"`);
-console.log(`[botshub] Hub: ${HUB_URL}`);
-console.log(`[botshub] Org: ${ORG_ID}`);
-console.log(`[botshub] Proxy: ${PROXY_URL || 'none'}`);
+console.log(`[hxa-connect] zylos-hxa-connect starting as "${AGENT_NAME}"`);
+console.log(`[hxa-connect] Hub: ${HUB_URL}`);
+console.log(`[hxa-connect] Org: ${ORG_ID}`);
+console.log(`[hxa-connect] Proxy: ${PROXY_URL || 'none'}`);
 
 await connectWithRetry();
 
@@ -231,13 +231,13 @@ async function connectWithRetry() {
   while (true) {
     try {
       await client.connect();
-      console.log('[botshub] WebSocket connected');
+      console.log('[hxa-connect] WebSocket connected');
       return;
     } catch (err) {
       attempt++;
       const delay = Math.min(INITIAL_DELAY * Math.pow(BACKOFF, attempt - 1), MAX_DELAY);
-      console.error(`[botshub] Connection attempt ${attempt} failed: ${err.message}`);
-      console.log(`[botshub] Retrying in ${(delay / 1000).toFixed(1)}s...`);
+      console.error(`[hxa-connect] Connection attempt ${attempt} failed: ${err.message}`);
+      console.log(`[hxa-connect] Retrying in ${(delay / 1000).toFixed(1)}s...`);
       await new Promise(r => setTimeout(r, delay));
     }
   }
@@ -245,7 +245,7 @@ async function connectWithRetry() {
 
 // Graceful shutdown
 function shutdown() {
-  console.log('[botshub] Shutting down...');
+  console.log('[hxa-connect] Shutting down...');
   client.disconnect();
   process.exit(0);
 }

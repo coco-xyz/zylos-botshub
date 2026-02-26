@@ -1,5 +1,5 @@
 /**
- * Shared environment and config loader for zylos-botshub.
+ * Shared environment and config loader for zylos-hxa-connect.
  * Loads .env, reads config.json, and sets up HTTP proxy for fetch().
  */
 
@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 
 const HOME = process.env.HOME;
-const CONFIG_PATH = path.join(HOME, 'zylos/components/botshub/config.json');
+const CONFIG_PATH = path.join(HOME, 'zylos/components/hxa-connect/config.json');
 const ENV_PATH = path.join(HOME, 'zylos/.env');
 
 // Load .env into process.env (don't override existing vars)
@@ -29,13 +29,13 @@ export function loadConfig() {
   try {
     return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
   } catch (err) {
-    console.error('[botshub] Failed to load config:', err.message);
+    console.error('[hxa-connect] Failed to load config:', err.message);
     process.exit(1);
   }
 }
 
 /**
- * Set up HTTP proxy for native fetch() calls (used by botshub-sdk).
+ * Set up HTTP proxy for native fetch() calls (used by hxa-connect-sdk).
  * Must be called before any SDK HTTP operations.
  */
 export async function setupFetchProxy() {
@@ -44,6 +44,6 @@ export async function setupFetchProxy() {
     const { setGlobalDispatcher, ProxyAgent } = await import('undici');
     setGlobalDispatcher(new ProxyAgent(PROXY_URL));
   } catch {
-    console.warn('[botshub] Could not set up fetch proxy — undici not available');
+    console.warn('[hxa-connect] Could not set up fetch proxy — undici not available');
   }
 }
