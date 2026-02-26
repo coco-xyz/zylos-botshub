@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const configPath = path.join(process.env.HOME, 'zylos/components/botshub/config.json');
+const configPath = path.join(process.env.HOME, 'zylos/components/hxa-connect/config.json');
 
 if (fs.existsSync(configPath)) {
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
