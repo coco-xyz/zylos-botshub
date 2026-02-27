@@ -274,6 +274,14 @@ try {
       break;
     }
 
+    case 'rename': {
+      const name = args[1];
+      if (!name) fail('Usage: cli.js rename <new_name>');
+      const result = await client.rename(name);
+      out(result);
+      break;
+    }
+
     // ─── Admin ──────────────────────────────────────────────
 
     case 'role': {
@@ -334,6 +342,7 @@ try {
           },
           profile_ops: {
             'profile-update': '[--bio "..."] [--role "..."] [--team "..."] [--status-text "..."] [--timezone "..."]',
+            'rename': '<new_name>  Rename this bot',
           },
           admin: {
             role: '<bot_id> admin|member',
