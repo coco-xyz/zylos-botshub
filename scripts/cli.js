@@ -51,10 +51,11 @@ const client = new HxaConnectClient({
 });
 
 // Find command: first positional arg (skip --flags and their values)
-let command;
+let command, commandIdx;
 for (let i = 0; i < args.length; i++) {
   if (args[i].startsWith('--')) { i++; continue; }
   command = args[i];
+  commandIdx = i;
   break;
 }
 
@@ -76,7 +77,7 @@ try {
     }
 
     case 'thread': {
-      const id = args[args.indexOf('thread') + 1];
+      const id = args[commandIdx + 1];
       if (!id || id.startsWith('--')) fail('Usage: cli.js thread <thread_id>');
       const thread = await client.getThread(id);
       out(thread);
@@ -84,7 +85,7 @@ try {
     }
 
     case 'messages': {
-      const id = args[args.indexOf('messages') + 1];
+      const id = args[commandIdx + 1];
       if (!id || id.startsWith('--')) fail('Usage: cli.js messages <thread_id> [--limit N] [--since TS] [--before TS]');
       const limit = getFlag('limit');
       const since = getFlag('since');
@@ -142,8 +143,7 @@ try {
     // ─── Thread Operations ──────────────────────────────────
 
     case 'thread-create': {
-      const idx = args.indexOf('thread-create');
-      const topic = args[idx + 1];
+      const topic = args[commandIdx + 1];
       if (!topic || topic.startsWith('--')) fail('Usage: cli.js thread-create "topic" [--tags a,b] [--participants bot1,bot2] [--context "..."]');
       const opts = { topic };
       const tags = getFlag('tags');
@@ -158,8 +158,7 @@ try {
     }
 
     case 'thread-update': {
-      const idx = args.indexOf('thread-update');
-      const id = args[idx + 1];
+      const id = args[commandIdx + 1];
       if (!id || id.startsWith('--')) fail('Usage: cli.js thread-update <thread_id> [--status active|blocked|reviewing|resolved|closed] [--topic "..."] [--close-reason manual|timeout|error]');
       const updates = {};
       const status = getFlag('status');
@@ -177,10 +176,9 @@ try {
     }
 
     case 'thread-invite': {
-      const idx = args.indexOf('thread-invite');
-      const threadId = args[idx + 1];
-      const botId = args[idx + 2];
-      if (!threadId || !botId) fail('Usage: cli.js thread-invite <thread_id> <bot_name_or_id> [--label "role"]');
+      const threadId = args[commandIdx + 1];
+      const botId = args[commandIdx + 2];
+      if (!threadId || threadId.startsWith('--') || !botId || botId.startsWith('--')) fail('Usage: cli.js thread-invite <thread_id> <bot_name_or_id> [--label "role"]');
       const label = getFlag('label');
       const result = await client.invite(threadId, botId, label);
       out(result);
@@ -188,8 +186,7 @@ try {
     }
 
     case 'thread-join': {
-      const idx = args.indexOf('thread-join');
-      const threadId = args[idx + 1];
+      const threadId = args[commandIdx + 1];
       if (!threadId || threadId.startsWith('--')) fail('Usage: cli.js thread-join <thread_id>');
       const result = await client.joinThread(threadId);
       out(result);
@@ -197,8 +194,7 @@ try {
     }
 
     case 'thread-leave': {
-      const idx = args.indexOf('thread-leave');
-      const threadId = args[idx + 1];
+      const threadId = args[commandIdx + 1];
       if (!threadId || threadId.startsWith('--')) fail('Usage: cli.js thread-leave <thread_id>');
       await client.leave(threadId);
       out({ ok: true });
@@ -208,10 +204,9 @@ try {
     // ─── Artifacts ──────────────────────────────────────────
 
     case 'artifact-add': {
-      const idx = args.indexOf('artifact-add');
-      const threadId = args[idx + 1];
-      const key = args[idx + 2];
-      if (!threadId || !key) fail('Usage: cli.js artifact-add <thread_id> <key> --type markdown|code|text|link --title "..." [--body "..."] [--url "..."] [--language js]');
+      const threadId = args[commandIdx + 1];
+      const key = args[commandIdx + 2];
+      if (!threadId || threadId.startsWith('--') || !key || key.startsWith('--')) fail('Usage: cli.js artifact-add <thread_id> <key> --type markdown|code|text|link --title "..." [--body "..."] [--url "..."] [--language js]');
       const type = getFlag('type');
       if (!type) fail('--type is required (markdown, code, text, link)');
       const artifact = { type };
@@ -234,10 +229,9 @@ try {
     }
 
     case 'artifact-update': {
-      const idx = args.indexOf('artifact-update');
-      const threadId = args[idx + 1];
-      const key = args[idx + 2];
-      if (!threadId || !key) fail('Usage: cli.js artifact-update <thread_id> <key> --body "..." | --stdin [--title "..."]');
+      const threadId = args[commandIdx + 1];
+      const key = args[commandIdx + 2];
+      if (!threadId || threadId.startsWith('--') || !key || key.startsWith('--')) fail('Usage: cli.js artifact-update <thread_id> <key> --body "..." | --stdin [--title "..."]');
       const updates = {};
       const body = getFlag('body');
       const title = getFlag('title');
@@ -257,8 +251,7 @@ try {
     }
 
     case 'artifact-list': {
-      const idx = args.indexOf('artifact-list');
-      const threadId = args[idx + 1];
+      const threadId = args[commandIdx + 1];
       if (!threadId || threadId.startsWith('--')) fail('Usage: cli.js artifact-list <thread_id>');
       const artifacts = await client.listArtifacts(threadId);
       out(artifacts);
@@ -266,10 +259,9 @@ try {
     }
 
     case 'artifact-versions': {
-      const idx = args.indexOf('artifact-versions');
-      const threadId = args[idx + 1];
-      const key = args[idx + 2];
-      if (!threadId || !key) fail('Usage: cli.js artifact-versions <thread_id> <key>');
+      const threadId = args[commandIdx + 1];
+      const key = args[commandIdx + 2];
+      if (!threadId || threadId.startsWith('--') || !key || key.startsWith('--')) fail('Usage: cli.js artifact-versions <thread_id> <key>');
       const versions = await client.getArtifactVersions(threadId, key);
       out(versions);
       break;
@@ -296,8 +288,7 @@ try {
     }
 
     case 'rename': {
-      const idx = args.indexOf('rename');
-      const name = args[idx + 1];
+      const name = args[commandIdx + 1];
       if (!name || name.startsWith('--')) fail('Usage: cli.js rename <new_name>');
       const result = await client.rename(name);
       out(result);
@@ -307,10 +298,9 @@ try {
     // ─── Admin ──────────────────────────────────────────────
 
     case 'role': {
-      const idx = args.indexOf('role');
-      const botId = args[idx + 1];
-      const role = args[idx + 2];
-      if (!botId || !role) fail('Usage: cli.js role <bot_id_or_name> admin|member');
+      const botId = args[commandIdx + 1];
+      const role = args[commandIdx + 2];
+      if (!botId || botId.startsWith('--') || !role || role.startsWith('--')) fail('Usage: cli.js role <bot_id_or_name> admin|member');
       if (role !== 'admin' && role !== 'member') fail('Role must be "admin" or "member"');
       const result = await client.setBotRole(botId, role);
       out(result);

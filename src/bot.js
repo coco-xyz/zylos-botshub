@@ -69,6 +69,17 @@ function sendToC4(channel, endpoint, content) {
   });
 }
 
+// ─── Constants ──────────────────────────────────────────────
+
+const HANDLED_EVENTS = new Set([
+  'message', 'channel_message', 'thread_created', 'thread_message',
+  'thread_updated', 'thread_artifact', 'thread_participant',
+  'channel_deleted', 'channel_created', 'bot_online', 'bot_offline', 'bot_renamed', 'thread_status_changed',
+  'reconnecting', 'reconnected', 'reconnect_failed', 'error', 'close', 'pong',
+]);
+
+const MAX_CONNECT_ATTEMPTS = 20;
+
 // ─── Per-Org Connection Setup ──────────────────────────────
 
 const connections = new Map();
@@ -232,12 +243,6 @@ for (const [label, org] of Object.entries(resolved.orgs)) {
     console.error(`${lp} Error: ${err?.message || err}`);
   });
 
-  const HANDLED_EVENTS = new Set([
-    'message', 'channel_message', 'thread_created', 'thread_message',
-    'thread_updated', 'thread_artifact', 'thread_participant',
-    'channel_deleted', 'channel_created', 'bot_online', 'bot_offline', 'bot_renamed', 'thread_status_changed',
-    'reconnecting', 'reconnected', 'reconnect_failed', 'error', 'close', 'pong',
-  ]);
   client.on('*', (msg) => {
     if (msg?.type && !HANDLED_EVENTS.has(msg.type)) {
       console.log(`${lp} Unhandled event: ${msg.type}`, JSON.stringify(msg).substring(0, 200));
@@ -260,7 +265,7 @@ async function connectOrg(label, { client, threadCtx, config: org }) {
 
   console.log(`${lp} Connecting as "${org.agentName}" to ${org.hubUrl} (org: ${org.orgId})`);
 
-  while (true) {
+  while (attempt < MAX_CONNECT_ATTEMPTS) {
     try {
       await client.connect();
       console.log(`${lp} WebSocket connected`);
@@ -271,17 +276,27 @@ async function connectOrg(label, { client, threadCtx, config: org }) {
       attempt++;
       const delay = Math.min(INITIAL_DELAY * Math.pow(BACKOFF, attempt - 1), MAX_DELAY);
       console.error(`${lp} Connection attempt ${attempt} failed: ${err.message}`);
+      if (attempt >= MAX_CONNECT_ATTEMPTS) {
+        console.error(`${lp} Giving up after ${attempt} attempts`);
+        connections.delete(label);
+        return;
+      }
       console.log(`${lp} Retrying in ${(delay / 1000).toFixed(1)}s...`);
       await new Promise(r => setTimeout(r, delay));
     }
   }
 }
 
-await Promise.all(
+await Promise.allSettled(
   [...connections.entries()].map(([label, conn]) => connectOrg(label, conn))
 );
 
-console.log(`[hxa-connect] All ${connections.size} org(s) connected`);
+if (connections.size === 0) {
+  console.error('[hxa-connect] No orgs connected successfully — exiting');
+  process.exit(1);
+}
+
+console.log(`[hxa-connect] ${connections.size} org(s) connected`);
 console.log(`[hxa-connect] Proxy: ${PROXY_URL || 'none'}`);
 
 // Graceful shutdown

@@ -44,13 +44,17 @@ export function migrateConfig() {
   const config = loadConfig();
 
   if (config.orgs) return config;
-  if (!config.org_id) return config;
+  if (!config.org_id) {
+    throw new Error('Config has no orgs and no org_id — add at least one org to config.json');
+  }
 
   console.log('[hxa-connect] Migrating config from single-org to multi-org format');
 
   const backupPath = CONFIG_PATH + '.bak';
-  fs.writeFileSync(backupPath, JSON.stringify(config, null, 2) + '\n');
-  console.log(`[hxa-connect] Backup written to ${backupPath}`);
+  if (!fs.existsSync(backupPath)) {
+    fs.writeFileSync(backupPath, JSON.stringify(config, null, 2) + '\n');
+    console.log(`[hxa-connect] Backup written to ${backupPath}`);
+  }
 
   const migrated = {
     default_hub_url: config.hub_url || null,
