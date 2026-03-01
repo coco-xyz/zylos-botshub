@@ -11,6 +11,7 @@ const CONFIG_PATH = path.join(HOME, 'zylos/components/hxa-connect/config.json');
 const ENV_PATH = path.join(HOME, 'zylos/.env');
 
 const LABEL_RE = /^[a-z0-9][a-z0-9-]*$/;
+const ACCESS_KEYS = ['dmPolicy', 'dmAllowFrom', 'groupPolicy', 'channels'];
 
 // Load .env into process.env (don't override existing vars)
 if (fs.existsSync(ENV_PATH)) {
@@ -28,58 +29,124 @@ if (fs.existsSync(ENV_PATH)) {
 export const PROXY_URL = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
 
 export function loadConfig() {
+  let raw;
   try {
-    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+    raw = fs.readFileSync(CONFIG_PATH, 'utf8');
   } catch (err) {
-    console.error('[hxa-connect] Failed to load config:', err.message);
+    console.error(`[hxa-connect] Cannot read config at ${CONFIG_PATH}: ${err.message}`);
+    process.exit(1);
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error(`[hxa-connect] Config is not valid JSON: ${err.message}`);
     process.exit(1);
   }
 }
 
+function atomicWrite(filePath, data) {
+  const tmpPath = filePath + `.tmp.${process.pid}`;
+  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n');
+  fs.renameSync(tmpPath, filePath);
+}
+
 /**
- * Migrate old single-org config format to new multi-org format.
- * Idempotent — already-new config is a no-op.
+ * Migrate config to current format. Two phases, both idempotent:
+ * 1. Single-org → multi-org (old flat format → orgs map)
+ * 2. Global access → per-org access (top-level dmPolicy etc. → orgs.*.access)
  */
 export function migrateConfig() {
   const config = loadConfig();
+  let changed = false;
 
-  if (config.orgs) return config;
-  if (!config.org_id) {
-    throw new Error('Config has no orgs and no org_id — add at least one org to config.json');
-  }
+  // Phase 1: single-org → multi-org
+  if (!config.orgs) {
+    if (!config.org_id) {
+      throw new Error('Config has no orgs and no org_id — add at least one org to config.json');
+    }
 
-  console.log('[hxa-connect] Migrating config from single-org to multi-org format');
+    console.log('[hxa-connect] Migrating config from single-org to multi-org format');
 
-  const backupPath = CONFIG_PATH + '.bak';
-  if (!fs.existsSync(backupPath)) {
-    fs.writeFileSync(backupPath, JSON.stringify(config, null, 2) + '\n');
-    console.log(`[hxa-connect] Backup written to ${backupPath}`);
-  }
+    const backupPath = CONFIG_PATH + '.bak';
+    if (!fs.existsSync(backupPath)) {
+      fs.writeFileSync(backupPath, JSON.stringify(config, null, 2) + '\n');
+      console.log(`[hxa-connect] Backup written to ${backupPath}`);
+    }
 
-  const migrated = {
-    default_hub_url: config.hub_url || null,
-    orgs: {
+    // Extract org fields, preserve everything else
+    const { hub_url, org_id, agent_id, agent_token, agent_name, ...rest } = config;
+
+    // Extract access fields from rest into per-org access
+    const access = {};
+    for (const key of ACCESS_KEYS) {
+      if (key in rest) {
+        access[key] = rest[key];
+        delete rest[key];
+      }
+    }
+
+    // Clear old flat keys from config
+    for (const k of ['hub_url', 'org_id', 'agent_id', 'agent_token', 'agent_name']) {
+      delete config[k];
+    }
+    // Remove access keys already extracted into `access`
+    for (const k of ACCESS_KEYS) delete config[k];
+    // Remove any stale orgs/default_hub_url from rest to prevent overwriting
+    delete rest.orgs;
+    delete rest.default_hub_url;
+
+    config.default_hub_url = hub_url || null;
+    config.orgs = {
       default: {
-        org_id: config.org_id,
-        agent_id: config.agent_id || null,
-        agent_token: config.agent_token,
-        agent_name: config.agent_name,
+        org_id,
+        agent_id: agent_id || null,
+        agent_token,
+        agent_name,
         hub_url: null,
+        ...(Object.keys(access).length > 0 ? { access } : {}),
       },
-    },
-  };
+    };
+    // Preserve remaining unknown top-level keys
+    Object.assign(config, rest);
+    changed = true;
+  }
 
-  const tmpPath = CONFIG_PATH + `.tmp.${process.pid}`;
-  fs.writeFileSync(tmpPath, JSON.stringify(migrated, null, 2) + '\n');
-  fs.renameSync(tmpPath, CONFIG_PATH);
-  console.log('[hxa-connect] Config migrated successfully');
+  // Phase 2: global access → per-org access
+  const globalAccess = {};
+  for (const key of ACCESS_KEYS) {
+    if (key in config) {
+      globalAccess[key] = config[key];
+    }
+  }
 
-  return migrated;
+  if (Object.keys(globalAccess).length > 0) {
+    console.log('[hxa-connect] Migrating global access fields to per-org access');
+    for (const org of Object.values(config.orgs)) {
+      if (!org.access) org.access = {};
+      // Merge per-field: only backfill missing keys, don't overwrite existing
+      for (const [key, val] of Object.entries(globalAccess)) {
+        if (!(key in org.access)) {
+          org.access[key] = val;
+        }
+      }
+    }
+    for (const key of ACCESS_KEYS) {
+      delete config[key];
+    }
+    changed = true;
+  }
+
+  if (changed) {
+    atomicWrite(CONFIG_PATH, config);
+    console.log('[hxa-connect] Config migrated successfully');
+  }
+
+  return config;
 }
 
 /**
  * Resolve config into normalized multi-org structure.
- * Returns { defaultHubUrl, orgs: { [label]: { orgId, agentId, agentToken, agentName, hubUrl } } }
+ * Returns { defaultHubUrl, orgs: { [label]: { orgId, agentId, agentToken, agentName, hubUrl, access } } }
  */
 export function resolveOrgs(config) {
   if (!config.orgs) {
@@ -103,6 +170,7 @@ export function resolveOrgs(config) {
       agentToken: org.agent_token,
       agentName: org.agent_name,
       hubUrl: org.hub_url || defaultHubUrl,
+      access: org.access || {},
     };
   }
 

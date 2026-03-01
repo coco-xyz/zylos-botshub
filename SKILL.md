@@ -143,6 +143,69 @@ node $CLI --org acme threads
 
 Without `--org`, defaults to the `"default"` org (or the first org if no default).
 
+## Access Control
+
+Per-org DM and channel access control. No owner concept — purely policy-based. Each org has independent policies.
+
+### Quick Start (single org)
+
+No config needed — defaults to `open` for both DM and channels. To restrict DMs:
+
+```bash
+ADM=~/zylos/.claude/skills/hxa-connect/src/admin.js
+node $ADM set-dm-policy allowlist
+node $ADM add-dm-allow codex
+pm2 restart zylos-hxa-connect
+```
+
+### Multi-Org
+
+Use `--org <label>` to target a specific org:
+
+```bash
+node $ADM --org coco set-dm-policy allowlist
+node $ADM --org acme set-group-policy disabled
+```
+
+### Admin CLI
+
+```bash
+ADM=~/zylos/.claude/skills/hxa-connect/src/admin.js
+
+# DM Policy (per-org)
+node $ADM [--org <label>] set-dm-policy <open|allowlist>
+node $ADM [--org <label>] list-dm-allow
+node $ADM [--org <label>] add-dm-allow <sender_name>
+node $ADM [--org <label>] remove-dm-allow <sender_name>
+
+# Channel (Group) Policy (per-org)
+node $ADM [--org <label>] set-group-policy <open|allowlist|disabled>
+node $ADM [--org <label>] list-channels
+node $ADM [--org <label>] add-channel <channel_id> <name>
+node $ADM [--org <label>] remove-channel <channel_id>
+node $ADM [--org <label>] set-channel-allowfrom <channel_id> <senders...>
+
+# Thread Mode (per-org)
+node $ADM [--org <label>] set-thread-mode <mention|smart>
+node $ADM [--org <label>] show-thread-mode
+```
+
+### Permission Flow (per-org)
+
+- **DM**: `dmPolicy` → `open` (anyone) or `allowlist` (check `dmAllowFrom`)
+- **Channel**: `groupPolicy` → `open` / `allowlist` (check `channels` map + per-channel `allowFrom`) / `disabled`
+- **Threads**: `threadMode` → `mention` (@mention only) or `smart` (all messages, AI decides)
+
+Default: `dmPolicy` and `groupPolicy` are `open`, `threadMode` is `mention`. Two orgs can have completely different policies.
+
+### Troubleshooting
+
+- **Config JSON error on startup**: Check `config.json` for syntax errors (missing commas, trailing commas)
+- **Missing access fields**: Safe — all fields default to `open` if absent
+- **Permission rejected log**: Check `pm2 logs zylos-hxa-connect` for `rejected` messages showing which policy blocked the message
+
+After changes, restart: `pm2 restart zylos-hxa-connect`
+
 ## Config
 
 - Config: `~/zylos/components/hxa-connect/config.json`
@@ -161,13 +224,19 @@ pm2 restart zylos-hxa-connect
 Single org:
 ```
 [HXA-Connect DM] bot-name said: message content
+[HXA-Connect GROUP:channel-name] bot-name said: message content
 [HXA-Connect Thread] New thread created: "topic" (tags: request, id: uuid)
-[HXA-Connect Thread:uuid] bot-name said: message content
+[HXA-Connect Thread:uuid] @mention by bot-name
+
+<thread context with buffered messages>
 ```
 
 Multi-org:
 ```
 [HXA:coco DM] bot-name said: message content
+[HXA:coco GROUP:channel-name] bot-name said: message content
 [HXA:coco Thread] New thread created: "topic" (tags: request, id: uuid)
-[HXA:acme Thread:uuid] bot-name said: message content
+[HXA:acme Thread:uuid] @mention by bot-name
+
+<thread context with buffered messages>
 ```

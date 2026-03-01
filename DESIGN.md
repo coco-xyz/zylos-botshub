@@ -66,7 +66,7 @@ Priority order:
 
 ## Config Format
 
-### New format (multi-org)
+### New format (multi-org with per-org access)
 
 ```json
 {
@@ -77,7 +77,13 @@ Priority order:
       "agent_id": "...",
       "agent_token": "agent_...",
       "agent_name": "zylos01",
-      "hub_url": null
+      "hub_url": null,
+      "access": {
+        "dmPolicy": "open",
+        "dmAllowFrom": [],
+        "groupPolicy": "open",
+        "channels": {}
+      }
     }
   }
 }
@@ -97,11 +103,19 @@ Priority order:
 
 ### Migration
 
-On startup, `migrateConfig()` detects old format (top-level `org_id`) and:
+`migrateConfig()` runs two idempotent phases on startup:
+
+**Phase 1: single-org → multi-org** (detects top-level `org_id`):
 1. Backs up to `config.json.bak`
-2. Writes new format with label `"default"`
-3. Uses PID-unique temp file for atomic write
-4. Idempotent — already-new config is a no-op
+2. Moves org fields into `orgs.default`
+3. Moves any access fields (dmPolicy, etc.) into `orgs.default.access`
+4. Preserves unknown top-level keys
+
+**Phase 2: global access → per-org access** (detects top-level access keys):
+1. Backfills missing access fields into each org's `access` (per-field merge — existing keys preserved)
+2. Removes global access keys
+
+Both phases use atomic write (PID-unique temp file + rename). Empty/corrupted JSON produces a readable error and exits.
 
 ### Label rules
 
@@ -118,6 +132,90 @@ Map<label, { client, threadCtx, config }>
 - Max 20 retry attempts per org with exponential backoff
 - Failed orgs are removed from the map; if all fail, process exits
 - Graceful shutdown disconnects all clients
+
+## Access Control
+
+Per-org DM and channel (group) access control. No owner concept — purely policy-based. Each org has independent policies under `orgs.<label>.access`.
+
+### Per-Org Access Config
+
+```json
+{
+  "access": {
+    "dmPolicy": "open",
+    "dmAllowFrom": [],
+    "groupPolicy": "open",
+    "channels": {},
+    "threadMode": "mention"
+  }
+}
+```
+
+### DM Policy
+
+| Policy | Behavior |
+|--------|----------|
+| `open` (default) | Any bot can DM |
+| `allowlist` | Only bots in `dmAllowFrom` (case-insensitive match on sender name) |
+
+### Channel (Group) Policy
+
+| Policy | Behavior |
+|--------|----------|
+| `open` (default) | All channels accepted |
+| `allowlist` | Only channels in `channels` map; per-channel `allowFrom` for sender filtering |
+| `disabled` | All channel messages rejected |
+
+### Per-Channel Config
+
+```json
+{
+  "channels": {
+    "<channel_id>": {
+      "name": "general",
+      "allowFrom": ["*"],
+      "added_at": "2026-03-01T..."
+    }
+  }
+}
+```
+
+`allowFrom`: Array of sender names. `["*"]` or empty = allow all senders.
+
+### Decision Flow (per-org)
+
+```
+DM message (org X) → isDmAllowed(orgX.access, senderName)
+  open → pass
+  allowlist → check dmAllowFrom
+
+Channel message (org X) → isChannelAllowed(orgX.access, channelId)
+  disabled → reject
+  open → pass
+  allowlist → check channels map
+  → isSenderAllowed(orgX.access, channelId, senderName)
+    allowFrom empty or ["*"] → pass
+    else → check sender in allowFrom
+
+Thread → threadMode (mention|smart) via SDK ThreadContext
+```
+
+Two orgs can have completely different policies — org A can be open while org B uses allowlist.
+
+### Thread Mode
+
+Per-org thread response mode, controlling how the bot handles thread messages.
+
+| Mode | Behavior |
+|------|----------|
+| `mention` (default) | Bot only receives thread messages when @mentioned. SDK ThreadContext buffers messages and delivers them as context when triggered. |
+| `smart` | Every thread message is delivered to the AI. A `<smart-mode>` hint instructs the AI to decide relevance — reply with `[SKIP]` to stay silent. Real @mentions are still recognized and delivered without the hint. |
+
+Implementation: `smart` mode adds a catch-all `triggerPatterns: [/[\s\S]/]` to `ThreadContext`, causing every message to trigger delivery. The `onMention` handler checks if the trigger was a real @mention or a smart-mode catch-all and formats the message accordingly.
+
+### Admin CLI
+
+`src/admin.js [--org <label>] <command>` manages per-org policies. Without `--org`, targets the default org. Changes require `pm2 restart zylos-hxa-connect`.
 
 ## Hooks
 

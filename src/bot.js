@@ -12,6 +12,7 @@ import { execFile } from 'child_process';
 import path from 'path';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { migrateConfig, resolveOrgs, setupFetchProxy, PROXY_URL } from './env.js';
+import { isDmAllowed, isChannelAllowed, isSenderAllowed } from './lib/auth.js';
 
 const HOME = process.env.HOME;
 const C4_RECEIVE = path.join(HOME, 'zylos/.claude/skills/comm-bridge/scripts/c4-receive.js');
@@ -120,6 +121,11 @@ for (const [label, org] of Object.entries(resolved.orgs)) {
     const content = msg.message?.content || msg.content || '';
     if (isSelf(msg.message?.sender_id)) return;
 
+    if (!isDmAllowed(org.access, sender)) {
+      console.log(`${lp} DM from ${sender} rejected (dmPolicy: ${org.access?.dmPolicy || 'open'})`);
+      return;
+    }
+
     console.log(`${lp} DM from ${sender}: ${content.substring(0, 80)}`);
     const formatted = `[${dp} DM] ${sender} said: ${content}`;
     sendToC4(C4_CHANNEL, c4Endpoint(label, sender), formatted);
@@ -131,6 +137,15 @@ for (const [label, org] of Object.entries(resolved.orgs)) {
     const channelName = msg.channel_name || chanId;
     const content = msg.message?.content || msg.content || '';
     if (isSelf(msg.message?.sender_id)) return;
+
+    if (!isChannelAllowed(org.access, chanId)) {
+      console.log(`${lp} Channel ${channelName} rejected (groupPolicy: ${org.access?.groupPolicy || 'open'})`);
+      return;
+    }
+    if (!isSenderAllowed(org.access, chanId, sender)) {
+      console.log(`${lp} Sender ${sender} rejected in channel ${channelName}`);
+      return;
+    }
 
     console.log(`${lp} Channel ${channelName} from ${sender}: ${content.substring(0, 80)}`);
     const formatted = `[${dp} GROUP:${channelName}] ${sender} said: ${content}`;
@@ -148,17 +163,49 @@ for (const [label, org] of Object.entries(resolved.orgs)) {
   });
 
   // ─── Thread @mention filtering (SDK ThreadContext) ───
+  const threadMode = org.access?.threadMode || 'mention';
   const threadCtx = new ThreadContext(client, {
     botNames: [org.agentName],
     botId: org.agentId || undefined,
+    // Smart mode: catch-all pattern triggers delivery on every message
+    ...(threadMode === 'smart' ? { triggerPatterns: [/^/] } : {}),
   });
+
+  const mentionRe = new RegExp(
+    `@${org.agentName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'
+  );
+
+  // Extract full text from message (mirrors SDK's extractText logic)
+  function extractText(msg) {
+    const parts = [msg.content || ''];
+    if (msg.parts) {
+      for (const part of msg.parts) {
+        if ('content' in part && typeof part.content === 'string') {
+          parts.push(part.content);
+        }
+      }
+    }
+    return parts.join(' ');
+  }
 
   threadCtx.onMention(({ threadId, message, snapshot }) => {
     const sender = message.sender_name || message.sender_id || 'unknown';
+    const content = message.content || '';
     const context = threadCtx.toPromptContext(threadId, 'full');
-    console.log(`${lp} Thread ${threadId} @mention by ${sender} (${snapshot.bufferedCount} buffered)`);
-    const formatted = `[${dp} Thread:${threadId}] @mention by ${sender}\n\n${context}`;
-    sendToC4(C4_CHANNEL, c4Endpoint(label, `thread:${threadId}`), formatted);
+    const isRealMention = mentionRe.test(extractText(message));
+
+    if (isRealMention || threadMode !== 'smart') {
+      // Normal @mention delivery
+      console.log(`${lp} Thread ${threadId} @mention by ${sender} (${snapshot.bufferedCount} buffered)`);
+      const formatted = `[${dp} Thread:${threadId}] @mention by ${sender}\n\n${context}`;
+      sendToC4(C4_CHANNEL, c4Endpoint(label, `thread:${threadId}`), formatted);
+    } else {
+      // Smart mode: no real @mention — deliver with hint
+      console.log(`${lp} Thread ${threadId} smart delivery from ${sender} (${snapshot.bufferedCount} buffered)`);
+      const hint = '<smart-mode>\nThis thread message was delivered in smart mode. Decide whether to respond based on relevance. Only reply when your input adds value. Reply with exactly [SKIP] to stay silent.\n</smart-mode>';
+      const formatted = `[${dp} Thread:${threadId}] ${sender} said: ${content}\n\n${hint}\n\n${context}`;
+      sendToC4(C4_CHANNEL, c4Endpoint(label, `thread:${threadId}`), formatted);
+    }
   });
 
   client.on('thread_message', (msg) => {
