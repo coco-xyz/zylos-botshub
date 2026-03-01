@@ -30,6 +30,10 @@ if (!ORG_ID) {
   console.error('[hxa-connect] org_id required in config.json');
   process.exit(1);
 }
+if (!AGENT_NAME) {
+  console.error('[hxa-connect] agent_name required in config.json (used for @mention filtering)');
+  process.exit(1);
+}
 if (!AGENT_ID) {
   console.warn('[hxa-connect] agent_id not set in config.json — self-message filter may be incomplete');
 }
