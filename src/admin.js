@@ -209,6 +209,31 @@ const commands = {
     console.log('Run: pm2 restart zylos-hxa-connect');
   },
 
+  // ─── Thread Mode ─────────────────────────────────────
+
+  'set-thread-mode': (config, label, mode) => {
+    const valid = ['mention', 'smart'];
+    mode = String(mode || '').trim().toLowerCase();
+    if (!valid.includes(mode)) {
+      console.error(`Usage: admin.js set-thread-mode <${valid.join('|')}>`);
+      process.exit(1);
+    }
+    const access = getOrgAccess(config, label);
+    access.threadMode = mode;
+    if (!saveConfig(config)) process.exit(1);
+    const desc = {
+      mention: '@mention only — bot responds when explicitly mentioned',
+      smart: 'All messages delivered — AI decides whether to respond',
+    };
+    console.log(`[${label}] Thread mode set to: ${mode} (${desc[mode]})`);
+    console.log('Run: pm2 restart zylos-hxa-connect');
+  },
+
+  'show-thread-mode': (config, label) => {
+    const access = getOrgAccess(config, label);
+    console.log(`[${label}] Thread mode: ${access.threadMode || 'mention'} (default: mention)`);
+  },
+
   'set-channel-allowfrom': (config, label, channelId, ...senders) => {
     if (!channelId || senders.length === 0) {
       console.error('Usage: admin.js set-channel-allowfrom <channel_id> <sender_names...>');
@@ -251,12 +276,16 @@ Commands:
   remove-channel <channel_id>                       Remove channel
   set-channel-allowfrom <channel_id> <senders...>   Set allowed senders (use * for all)
 
+  Thread Mode (per-org):
+  set-thread-mode <mention|smart>                    Set thread response mode
+  show-thread-mode                                   Show current thread mode
+
   help                                              Show this help
 
 Permission flow (evaluated per-org):
   DM:      dmPolicy (open|allowlist) + dmAllowFrom
   Channel: groupPolicy (open|allowlist|disabled) + channels map + per-channel allowFrom
-  Threads: @mention filter via SDK ThreadContext (no additional policy)
+  Threads: threadMode (mention|smart) — mention = @mention only, smart = all messages delivered
 
 After changes, restart: pm2 restart zylos-hxa-connect
 `);

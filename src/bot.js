@@ -163,17 +163,36 @@ for (const [label, org] of Object.entries(resolved.orgs)) {
   });
 
   // ─── Thread @mention filtering (SDK ThreadContext) ───
+  const threadMode = org.access?.threadMode || 'mention';
   const threadCtx = new ThreadContext(client, {
     botNames: [org.agentName],
     botId: org.agentId || undefined,
+    // Smart mode: catch-all pattern triggers delivery on every message
+    ...(threadMode === 'smart' ? { triggerPatterns: [/[\s\S]/] } : {}),
   });
+
+  const mentionRe = new RegExp(
+    `@${org.agentName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'
+  );
 
   threadCtx.onMention(({ threadId, message, snapshot }) => {
     const sender = message.sender_name || message.sender_id || 'unknown';
+    const content = message.content || '';
     const context = threadCtx.toPromptContext(threadId, 'full');
-    console.log(`${lp} Thread ${threadId} @mention by ${sender} (${snapshot.bufferedCount} buffered)`);
-    const formatted = `[${dp} Thread:${threadId}] @mention by ${sender}\n\n${context}`;
-    sendToC4(C4_CHANNEL, c4Endpoint(label, `thread:${threadId}`), formatted);
+    const isRealMention = mentionRe.test(content);
+
+    if (isRealMention || threadMode !== 'smart') {
+      // Normal @mention delivery
+      console.log(`${lp} Thread ${threadId} @mention by ${sender} (${snapshot.bufferedCount} buffered)`);
+      const formatted = `[${dp} Thread:${threadId}] @mention by ${sender}\n\n${context}`;
+      sendToC4(C4_CHANNEL, c4Endpoint(label, `thread:${threadId}`), formatted);
+    } else {
+      // Smart mode: no real @mention — deliver with hint
+      console.log(`${lp} Thread ${threadId} smart delivery from ${sender} (${snapshot.bufferedCount} buffered)`);
+      const hint = '<smart-mode>\nThis thread message was delivered in smart mode. Decide whether to respond based on relevance. Only reply when your input adds value. Reply with exactly [SKIP] to stay silent.\n</smart-mode>';
+      const formatted = `[${dp} Thread:${threadId}] ${sender} said: ${content}\n\n${hint}\n\n${context}`;
+      sendToC4(C4_CHANNEL, c4Endpoint(label, `thread:${threadId}`), formatted);
+    }
   });
 
   client.on('thread_message', (msg) => {

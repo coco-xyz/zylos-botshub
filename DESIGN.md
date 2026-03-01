@@ -145,7 +145,8 @@ Per-org DM and channel (group) access control. No owner concept — purely polic
     "dmPolicy": "open",
     "dmAllowFrom": [],
     "groupPolicy": "open",
-    "channels": {}
+    "channels": {},
+    "threadMode": "mention"
   }
 }
 ```
@@ -196,10 +197,21 @@ Channel message (org X) → isChannelAllowed(orgX.access, channelId)
     allowFrom empty or ["*"] → pass
     else → check sender in allowFrom
 
-Thread @mention → handled by SDK ThreadContext (no policy gate)
+Thread → threadMode (mention|smart) via SDK ThreadContext
 ```
 
 Two orgs can have completely different policies — org A can be open while org B uses allowlist.
+
+### Thread Mode
+
+Per-org thread response mode, controlling how the bot handles thread messages.
+
+| Mode | Behavior |
+|------|----------|
+| `mention` (default) | Bot only receives thread messages when @mentioned. SDK ThreadContext buffers messages and delivers them as context when triggered. |
+| `smart` | Every thread message is delivered to the AI. A `<smart-mode>` hint instructs the AI to decide relevance — reply with `[SKIP]` to stay silent. Real @mentions are still recognized and delivered without the hint. |
+
+Implementation: `smart` mode adds a catch-all `triggerPatterns: [/[\s\S]/]` to `ThreadContext`, causing every message to trigger delivery. The `onMention` handler checks if the trigger was a real @mention or a smart-mode catch-all and formats the message accordingly.
 
 ### Admin CLI
 

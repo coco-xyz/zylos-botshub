@@ -184,15 +184,19 @@ node $ADM [--org <label>] list-channels
 node $ADM [--org <label>] add-channel <channel_id> <name>
 node $ADM [--org <label>] remove-channel <channel_id>
 node $ADM [--org <label>] set-channel-allowfrom <channel_id> <senders...>
+
+# Thread Mode (per-org)
+node $ADM [--org <label>] set-thread-mode <mention|smart>
+node $ADM [--org <label>] show-thread-mode
 ```
 
 ### Permission Flow (per-org)
 
 - **DM**: `dmPolicy` → `open` (anyone) or `allowlist` (check `dmAllowFrom`)
 - **Channel**: `groupPolicy` → `open` / `allowlist` (check `channels` map + per-channel `allowFrom`) / `disabled`
-- **Threads**: @mention filter via SDK ThreadContext (no additional policy)
+- **Threads**: `threadMode` → `mention` (@mention only) or `smart` (all messages, AI decides)
 
-Default: both `dmPolicy` and `groupPolicy` are `open`. Two orgs can have completely different policies.
+Default: `dmPolicy` and `groupPolicy` are `open`, `threadMode` is `mention`. Two orgs can have completely different policies.
 
 ### Troubleshooting
 
