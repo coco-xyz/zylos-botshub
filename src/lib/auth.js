@@ -1,47 +1,50 @@
 /**
  * Access control for zylos-hxa-connect.
- * DM and channel (group) policy enforcement.
+ * Per-org DM and channel (group) policy enforcement.
  * No owner concept — access is purely policy-based.
+ *
+ * All functions take an `access` object (from org.access in config),
+ * NOT the full config. This ensures per-org isolation.
  */
 
 /**
  * Check if a DM sender is allowed.
- * @param {object} config - Full config object
+ * @param {object} access - Per-org access config (e.g. { dmPolicy, dmAllowFrom })
  * @param {string} senderName - Sender's bot name
  * @returns {boolean}
  */
-export function isDmAllowed(config, senderName) {
-  const policy = config.dmPolicy || 'open';
+export function isDmAllowed(access, senderName) {
+  const policy = access?.dmPolicy || 'open';
   if (policy === 'open') return true;
   // policy === 'allowlist'
   const name = String(senderName || '').toLowerCase();
-  const allowFrom = (config.dmAllowFrom || []).map(s => String(s).toLowerCase());
+  const allowFrom = (access?.dmAllowFrom || []).map(s => String(s).toLowerCase());
   return allowFrom.includes(name);
 }
 
 /**
  * Check if a channel (group) is allowed by the current policy.
- * @param {object} config
+ * @param {object} access - Per-org access config
  * @param {string} channelId
  * @returns {boolean}
  */
-export function isChannelAllowed(config, channelId) {
-  const policy = config.groupPolicy || 'open';
+export function isChannelAllowed(access, channelId) {
+  const policy = access?.groupPolicy || 'open';
   if (policy === 'disabled') return false;
   if (policy === 'open') return true;
   // allowlist: must be in channels map
-  return !!config.channels?.[channelId];
+  return !!access?.channels?.[channelId];
 }
 
 /**
  * Check if a sender is allowed in a specific channel.
- * @param {object} config
+ * @param {object} access - Per-org access config
  * @param {string} channelId
  * @param {string} senderName
  * @returns {boolean}
  */
-export function isSenderAllowed(config, channelId, senderName) {
-  const cc = config.channels?.[channelId];
+export function isSenderAllowed(access, channelId, senderName) {
+  const cc = access?.channels?.[channelId];
   if (!cc?.allowFrom || cc.allowFrom.length === 0) return true;
   if (cc.allowFrom.includes('*')) return true;
   const name = String(senderName || '').toLowerCase();

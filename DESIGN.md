@@ -66,7 +66,7 @@ Priority order:
 
 ## Config Format
 
-### New format (multi-org)
+### New format (multi-org with per-org access)
 
 ```json
 {
@@ -77,7 +77,13 @@ Priority order:
       "agent_id": "...",
       "agent_token": "agent_...",
       "agent_name": "zylos01",
-      "hub_url": null
+      "hub_url": null,
+      "access": {
+        "dmPolicy": "open",
+        "dmAllowFrom": [],
+        "groupPolicy": "open",
+        "channels": {}
+      }
     }
   }
 }
@@ -97,11 +103,19 @@ Priority order:
 
 ### Migration
 
-On startup, `migrateConfig()` detects old format (top-level `org_id`) and:
+`migrateConfig()` runs two idempotent phases on startup:
+
+**Phase 1: single-org → multi-org** (detects top-level `org_id`):
 1. Backs up to `config.json.bak`
-2. Writes new format with label `"default"`
-3. Uses PID-unique temp file for atomic write
-4. Idempotent — already-new config is a no-op
+2. Moves org fields into `orgs.default`
+3. Moves any access fields (dmPolicy, etc.) into `orgs.default.access`
+4. Preserves unknown top-level keys
+
+**Phase 2: global access → per-org access** (detects top-level access keys):
+1. Copies global access fields into each org's `access` (if org has none)
+2. Removes global access keys
+
+Both phases use atomic write (PID-unique temp file + rename). Empty/corrupted JSON produces a readable error and exits.
 
 ### Label rules
 
@@ -121,16 +135,18 @@ Map<label, { client, threadCtx, config }>
 
 ## Access Control
 
-DM and channel (group) access is controlled via top-level config fields. No owner concept — purely policy-based.
+Per-org DM and channel (group) access control. No owner concept — purely policy-based. Each org has independent policies under `orgs.<label>.access`.
 
-### Config Fields
+### Per-Org Access Config
 
 ```json
 {
-  "dmPolicy": "open",
-  "dmAllowFrom": [],
-  "groupPolicy": "open",
-  "channels": {}
+  "access": {
+    "dmPolicy": "open",
+    "dmAllowFrom": [],
+    "groupPolicy": "open",
+    "channels": {}
+  }
 }
 ```
 
@@ -165,27 +181,29 @@ DM and channel (group) access is controlled via top-level config fields. No owne
 
 `allowFrom`: Array of sender names. `["*"]` or empty = allow all senders.
 
-### Decision Flow
+### Decision Flow (per-org)
 
 ```
-DM message → isDmAllowed(config, senderName)
+DM message (org X) → isDmAllowed(orgX.access, senderName)
   open → pass
   allowlist → check dmAllowFrom
 
-Channel message → isChannelAllowed(config, channelId)
+Channel message (org X) → isChannelAllowed(orgX.access, channelId)
   disabled → reject
   open → pass
   allowlist → check channels map
-  → isSenderAllowed(config, channelId, senderName)
+  → isSenderAllowed(orgX.access, channelId, senderName)
     allowFrom empty or ["*"] → pass
     else → check sender in allowFrom
 
 Thread @mention → handled by SDK ThreadContext (no policy gate)
 ```
 
+Two orgs can have completely different policies — org A can be open while org B uses allowlist.
+
 ### Admin CLI
 
-`src/admin.js` provides commands for managing policies and allowlists. Changes require `pm2 restart zylos-hxa-connect`.
+`src/admin.js [--org <label>] <command>` manages per-org policies. Without `--org`, targets the default org. Changes require `pm2 restart zylos-hxa-connect`.
 
 ## Hooks
 

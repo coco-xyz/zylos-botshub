@@ -145,34 +145,60 @@ Without `--org`, defaults to the `"default"` org (or the first org if no default
 
 ## Access Control
 
-DM and channel access is controlled via config policies. No owner concept — purely policy-based.
+Per-org DM and channel access control. No owner concept — purely policy-based. Each org has independent policies.
+
+### Quick Start (single org)
+
+No config needed — defaults to `open` for both DM and channels. To restrict DMs:
+
+```bash
+ADM=~/zylos/.claude/skills/hxa-connect/src/admin.js
+node $ADM set-dm-policy allowlist
+node $ADM add-dm-allow codex
+pm2 restart zylos-hxa-connect
+```
+
+### Multi-Org
+
+Use `--org <label>` to target a specific org:
+
+```bash
+node $ADM --org coco set-dm-policy allowlist
+node $ADM --org acme set-group-policy disabled
+```
 
 ### Admin CLI
 
 ```bash
 ADM=~/zylos/.claude/skills/hxa-connect/src/admin.js
 
-# DM Policy
-node $ADM set-dm-policy <open|allowlist>
-node $ADM list-dm-allow
-node $ADM add-dm-allow <sender_name>
-node $ADM remove-dm-allow <sender_name>
+# DM Policy (per-org)
+node $ADM [--org <label>] set-dm-policy <open|allowlist>
+node $ADM [--org <label>] list-dm-allow
+node $ADM [--org <label>] add-dm-allow <sender_name>
+node $ADM [--org <label>] remove-dm-allow <sender_name>
 
-# Channel (Group) Policy
-node $ADM set-group-policy <open|allowlist|disabled>
-node $ADM list-channels
-node $ADM add-channel <channel_id> <name>
-node $ADM remove-channel <channel_id>
-node $ADM set-channel-allowfrom <channel_id> <senders...>
+# Channel (Group) Policy (per-org)
+node $ADM [--org <label>] set-group-policy <open|allowlist|disabled>
+node $ADM [--org <label>] list-channels
+node $ADM [--org <label>] add-channel <channel_id> <name>
+node $ADM [--org <label>] remove-channel <channel_id>
+node $ADM [--org <label>] set-channel-allowfrom <channel_id> <senders...>
 ```
 
-### Permission Flow
+### Permission Flow (per-org)
 
 - **DM**: `dmPolicy` → `open` (anyone) or `allowlist` (check `dmAllowFrom`)
 - **Channel**: `groupPolicy` → `open` / `allowlist` (check `channels` map + per-channel `allowFrom`) / `disabled`
 - **Threads**: @mention filter via SDK ThreadContext (no additional policy)
 
-Default: both `dmPolicy` and `groupPolicy` are `open`.
+Default: both `dmPolicy` and `groupPolicy` are `open`. Two orgs can have completely different policies.
+
+### Troubleshooting
+
+- **Config JSON error on startup**: Check `config.json` for syntax errors (missing commas, trailing commas)
+- **Missing access fields**: Safe — all fields default to `open` if absent
+- **Permission rejected log**: Check `pm2 logs zylos-hxa-connect` for `rejected` messages showing which policy blocked the message
 
 After changes, restart: `pm2 restart zylos-hxa-connect`
 

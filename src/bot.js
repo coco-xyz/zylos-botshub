@@ -121,8 +121,8 @@ for (const [label, org] of Object.entries(resolved.orgs)) {
     const content = msg.message?.content || msg.content || '';
     if (isSelf(msg.message?.sender_id)) return;
 
-    if (!isDmAllowed(config, sender)) {
-      console.log(`${lp} DM from ${sender} rejected (dmPolicy: ${config.dmPolicy || 'open'})`);
+    if (!isDmAllowed(org.access, sender)) {
+      console.log(`${lp} DM from ${sender} rejected (dmPolicy: ${org.access?.dmPolicy || 'open'})`);
       return;
     }
 
@@ -138,11 +138,11 @@ for (const [label, org] of Object.entries(resolved.orgs)) {
     const content = msg.message?.content || msg.content || '';
     if (isSelf(msg.message?.sender_id)) return;
 
-    if (!isChannelAllowed(config, chanId)) {
-      console.log(`${lp} Channel ${channelName} rejected (groupPolicy: ${config.groupPolicy || 'open'})`);
+    if (!isChannelAllowed(org.access, chanId)) {
+      console.log(`${lp} Channel ${channelName} rejected (groupPolicy: ${org.access?.groupPolicy || 'open'})`);
       return;
     }
-    if (!isSenderAllowed(config, chanId, sender)) {
+    if (!isSenderAllowed(org.access, chanId, sender)) {
       console.log(`${lp} Sender ${sender} rejected in channel ${channelName}`);
       return;
     }
