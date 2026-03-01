@@ -55,21 +55,20 @@ try {
   if (target.startsWith('thread:')) {
     // Explicit thread message
     await sendAsThread(target.slice('thread:'.length));
-  } else if (target.startsWith('channel:')) {
-    // Explicit channel message
-    const channelId = target.slice('channel:'.length);
-    await client.sendMessage(channelId, message);
-    console.log(`Sent to channel ${channelId}: ${message.substring(0, 50)}...`);
   } else if (UUID_RE.test(target)) {
     // Bare UUID — could be a thread ID or a bot ID.
-    // Try to resolve as thread first (cheaper than a failed DM).
+    // Try to resolve as thread first; only fall back to DM on 404.
     try {
       await client.getThread(target);
       // Thread exists — send as thread message
       await sendAsThread(target);
     } catch (threadErr) {
-      // Not a thread (or no access) — fall back to DM
-      await sendAsDM(target);
+      // Only fall back to DM if thread was not found
+      if (threadErr?.body?.code === 'NOT_FOUND' || threadErr?.status === 404) {
+        await sendAsDM(target);
+      } else {
+        throw threadErr;
+      }
     }
   } else {
     // Name or short ID — send as DM
