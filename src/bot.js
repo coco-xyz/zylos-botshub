@@ -168,18 +168,31 @@ for (const [label, org] of Object.entries(resolved.orgs)) {
     botNames: [org.agentName],
     botId: org.agentId || undefined,
     // Smart mode: catch-all pattern triggers delivery on every message
-    ...(threadMode === 'smart' ? { triggerPatterns: [/[\s\S]/] } : {}),
+    ...(threadMode === 'smart' ? { triggerPatterns: [/^/] } : {}),
   });
 
   const mentionRe = new RegExp(
     `@${org.agentName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'
   );
 
+  // Extract full text from message (mirrors SDK's extractText logic)
+  function extractText(msg) {
+    const parts = [msg.content || ''];
+    if (msg.parts) {
+      for (const part of msg.parts) {
+        if ('content' in part && typeof part.content === 'string') {
+          parts.push(part.content);
+        }
+      }
+    }
+    return parts.join(' ');
+  }
+
   threadCtx.onMention(({ threadId, message, snapshot }) => {
     const sender = message.sender_name || message.sender_id || 'unknown';
     const content = message.content || '';
     const context = threadCtx.toPromptContext(threadId, 'full');
-    const isRealMention = mentionRe.test(content);
+    const isRealMention = mentionRe.test(extractText(message));
 
     if (isRealMention || threadMode !== 'smart') {
       // Normal @mention delivery
