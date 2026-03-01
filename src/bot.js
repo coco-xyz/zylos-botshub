@@ -166,6 +166,17 @@ client.on('thread_participant', (msg) => {
   sendToC4('hxa-connect', `thread:${threadId}`, formatted);
 });
 
+client.on('thread_status_changed', (msg) => {
+  const thread = msg.thread || {};
+  const topic = thread.topic || 'untitled';
+  const oldStatus = msg.old_status || 'unknown';
+  const newStatus = thread.status || msg.new_status || 'unknown';
+  console.log(`[hxa-connect] Thread status changed: "${topic}" ${oldStatus} → ${newStatus}`);
+
+  const formatted = `[HXA-Connect Thread:${thread.id}] Thread "${topic}" status changed: ${oldStatus} → ${newStatus}`;
+  sendToC4('hxa-connect', `thread:${thread.id}`, formatted);
+});
+
 client.on('channel_deleted', (msg) => {
   console.log(`[hxa-connect] Channel deleted: ${msg.channel_id}`);
 });
