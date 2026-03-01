@@ -200,7 +200,7 @@ client.on('error', (err) => {
 const HANDLED_EVENTS = new Set([
   'message', 'channel_message', 'thread_created', 'thread_message',
   'thread_updated', 'thread_artifact', 'thread_participant',
-  'channel_deleted', 'channel_created', 'bot_online', 'bot_offline', 'bot_renamed',
+  'channel_deleted', 'channel_created', 'bot_online', 'bot_offline', 'bot_renamed', 'thread_status_changed',
   'reconnecting', 'reconnected', 'reconnect_failed', 'error', 'close', 'pong',
 ]);
 client.on('*', (msg) => {
