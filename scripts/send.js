@@ -37,7 +37,7 @@ const client = new HxaConnectClient({
 });
 
 // Determine whether the target is a thread or a DM recipient.
-// Explicit prefix "thread:" or "channel:" is authoritative.
+// Explicit prefix "thread:" is authoritative.
 // Bare UUIDs are auto-detected: try thread first, fall back to DM.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
