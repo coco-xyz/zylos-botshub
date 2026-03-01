@@ -56,17 +56,21 @@ export function migrateConfig() {
     console.log(`[hxa-connect] Backup written to ${backupPath}`);
   }
 
+  // Preserve non-org top-level keys (access control, etc.)
+  const { hub_url, org_id, agent_id, agent_token, agent_name, ...rest } = config;
+
   const migrated = {
-    default_hub_url: config.hub_url || null,
+    default_hub_url: hub_url || null,
     orgs: {
       default: {
-        org_id: config.org_id,
-        agent_id: config.agent_id || null,
-        agent_token: config.agent_token,
-        agent_name: config.agent_name,
+        org_id,
+        agent_id: agent_id || null,
+        agent_token,
+        agent_name,
         hub_url: null,
       },
     },
+    ...rest,
   };
 
   const tmpPath = CONFIG_PATH + `.tmp.${process.pid}`;
