@@ -3,60 +3,73 @@
  * zylos-hxa-connect send interface
  *
  * Usage:
- *   node send.js <to_agent> "<message>"          — Send DM (default org)
- *   node send.js thread:<thread_id> "<message>"   — Send thread message (default org)
- *   node send.js --org coco <to_agent> "<message>" — Send via specific org
+ *   node send.js <endpoint> "<message>"              — Send (org resolved from endpoint)
+ *   node send.js --org coco <endpoint> "<message>"   — Send via specific org (debug override)
  *
  * Called by C4 comm-bridge to send outbound messages via HXA-Connect SDK.
  *
- * C4 channel parsing:
- *   "hxa-connect"       → org label "default"
- *   "hxa-connect:coco"  → org label "coco"
+ * Endpoint encoding (set by bot.js):
+ *   "bot-name"                 → DM to bot-name, default org
+ *   "thread:uuid"              → Thread message, default org
+ *   "org:coco|bot-name"        → DM to bot-name, org "coco"
+ *   "org:coco|thread:uuid"     → Thread message, org "coco"
+ *
+ * Backward compatible: endpoints without org: prefix use the default org.
  */
 
 import { HxaConnectClient } from '@coco-xyz/hxa-connect-sdk';
 import { migrateConfig, resolveOrgs, setupFetchProxy } from '../src/env.js';
 
+const ORG_PREFIX_RE = /^org:([a-z0-9][a-z0-9-]*)\|(.+)$/;
+
+function parseEndpoint(raw) {
+  const m = raw.match(ORG_PREFIX_RE);
+  if (m) return { orgLabel: m[1], target: m[2] };
+  return { orgLabel: null, target: raw };
+}
+
 const rawArgs = process.argv.slice(2);
 
-let orgLabel = null;
+let orgOverride = null;
 const args = [];
 for (let i = 0; i < rawArgs.length; i++) {
   if (rawArgs[i] === '--org' && i + 1 < rawArgs.length) {
-    orgLabel = rawArgs[++i];
-  } else if (rawArgs[i] === '--channel' && i + 1 < rawArgs.length) {
-    const ch = rawArgs[++i];
-    if (ch === 'hxa-connect') orgLabel = orgLabel || 'default';
-    else if (ch.startsWith('hxa-connect:')) orgLabel = orgLabel || ch.slice('hxa-connect:'.length);
+    orgOverride = rawArgs[++i];
   } else {
     args.push(rawArgs[i]);
   }
 }
 
 if (args.length < 2) {
-  console.error('Usage: node send.js [--org <label>] [--channel <c4_channel>] <to_agent|thread:id> "<message>"');
+  console.error('Usage: node send.js [--org <label>] <endpoint> "<message>"');
+  console.error('');
+  console.error('Endpoint formats:');
+  console.error('  <bot_name>              DM (default org)');
+  console.error('  thread:<id>             Thread message (default org)');
+  console.error('  org:<label>|<bot_name>  DM via specific org');
+  console.error('  org:<label>|thread:<id> Thread message via specific org');
   process.exit(1);
 }
 
-const target = args[0];
+const rawEndpoint = args[0];
 const message = args.slice(1).join(' ');
+
+const { orgLabel: endpointOrg, target } = parseEndpoint(rawEndpoint);
 
 const config = migrateConfig();
 const resolved = resolveOrgs(config);
 const orgLabels = Object.keys(resolved.orgs);
 
-if (!orgLabel) {
-  orgLabel = resolved.orgs.default ? 'default' : orgLabels[0];
-}
+const effectiveLabel = orgOverride || endpointOrg || (resolved.orgs.default ? 'default' : orgLabels[0]);
 
-const org = resolved.orgs[orgLabel];
+const org = resolved.orgs[effectiveLabel];
 if (!org) {
-  console.error(`Error: org "${orgLabel}" not found. Available: ${orgLabels.join(', ')}`);
+  console.error(`Error: org "${effectiveLabel}" not found. Available: ${orgLabels.join(', ')}`);
   process.exit(1);
 }
 
 if (!org.hubUrl) {
-  console.error(`Error: no hub_url configured for org "${orgLabel}"`);
+  console.error(`Error: no hub_url configured for org "${effectiveLabel}"`);
   process.exit(1);
 }
 

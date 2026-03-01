@@ -21,9 +21,11 @@ const resolved = resolveOrgs(config);
 const orgLabels = Object.keys(resolved.orgs);
 const isMultiOrg = orgLabels.length > 1 || !resolved.orgs.default;
 
-function c4Channel(label) {
-  if (!isMultiOrg && label === 'default') return 'hxa-connect';
-  return `hxa-connect:${label}`;
+const C4_CHANNEL = 'hxa-connect';
+
+function c4Endpoint(label, endpoint) {
+  if (!isMultiOrg && label === 'default') return endpoint;
+  return `org:${label}|${endpoint}`;
 }
 
 function displayPrefix(label) {
@@ -86,7 +88,6 @@ const connections = new Map();
 for (const [label, org] of Object.entries(resolved.orgs)) {
   const lp = logPrefix(label);
   const dp = displayPrefix(label);
-  const channel = c4Channel(label);
 
   if (!org.hubUrl) {
     console.error(`${lp} No hub_url configured (neither per-org nor default)`);
@@ -121,7 +122,7 @@ for (const [label, org] of Object.entries(resolved.orgs)) {
 
     console.log(`${lp} DM from ${sender}: ${content.substring(0, 80)}`);
     const formatted = `[${dp} DM] ${sender} said: ${content}`;
-    sendToC4(channel, sender, formatted);
+    sendToC4(C4_CHANNEL, c4Endpoint(label, sender), formatted);
   });
 
   client.on('channel_message', (msg) => {
@@ -133,7 +134,7 @@ for (const [label, org] of Object.entries(resolved.orgs)) {
 
     console.log(`${lp} Channel ${channelName} from ${sender}: ${content.substring(0, 80)}`);
     const formatted = `[${dp} GROUP:${channelName}] ${sender} said: ${content}`;
-    sendToC4(channel, `channel:${chanId}`, formatted);
+    sendToC4(C4_CHANNEL, c4Endpoint(label, `channel:${chanId}`), formatted);
   });
 
   client.on('thread_created', (msg) => {
@@ -143,7 +144,7 @@ for (const [label, org] of Object.entries(resolved.orgs)) {
     console.log(`${lp} Thread created: "${topic}" (tags: ${tags})`);
 
     const formatted = `[${dp} Thread] New thread created: "${topic}" (tags: ${tags}, id: ${thread.id})`;
-    sendToC4(channel, `thread:${thread.id}`, formatted);
+    sendToC4(C4_CHANNEL, c4Endpoint(label, `thread:${thread.id}`), formatted);
   });
 
   // ─── Thread @mention filtering (SDK ThreadContext) ───
@@ -157,7 +158,7 @@ for (const [label, org] of Object.entries(resolved.orgs)) {
     const context = threadCtx.toPromptContext(threadId, 'full');
     console.log(`${lp} Thread ${threadId} @mention by ${sender} (${snapshot.bufferedCount} buffered)`);
     const formatted = `[${dp} Thread:${threadId}] @mention by ${sender}\n\n${context}`;
-    sendToC4(channel, `thread:${threadId}`, formatted);
+    sendToC4(C4_CHANNEL, c4Endpoint(label, `thread:${threadId}`), formatted);
   });
 
   client.on('thread_message', (msg) => {
@@ -175,7 +176,7 @@ for (const [label, org] of Object.entries(resolved.orgs)) {
     console.log(`${lp} Thread updated: "${topic}" changes: ${changes.join(', ')}`);
 
     const formatted = `[${dp} Thread:${thread.id}] Thread "${topic}" updated: ${changes.join(', ')} (status: ${thread.status})`;
-    sendToC4(channel, `thread:${thread.id}`, formatted);
+    sendToC4(C4_CHANNEL, c4Endpoint(label, `thread:${thread.id}`), formatted);
   });
 
   client.on('thread_artifact', (msg) => {
@@ -185,7 +186,7 @@ for (const [label, org] of Object.entries(resolved.orgs)) {
     console.log(`${lp} Thread ${threadId} artifact ${action}: ${artifact.artifact_key}`);
 
     const formatted = `[${dp} Thread:${threadId}] Artifact ${action}: "${artifact.title || artifact.artifact_key}" (type: ${artifact.type})`;
-    sendToC4(channel, `thread:${threadId}`, formatted);
+    sendToC4(C4_CHANNEL, c4Endpoint(label, `thread:${threadId}`), formatted);
   });
 
   client.on('thread_participant', (msg) => {
@@ -197,7 +198,7 @@ for (const [label, org] of Object.entries(resolved.orgs)) {
     console.log(`${lp} Thread ${threadId}: ${botName} ${action}${by}`);
 
     const formatted = `[${dp} Thread:${threadId}] ${botName}${labelTag} ${action} the thread${by}`;
-    sendToC4(channel, `thread:${threadId}`, formatted);
+    sendToC4(C4_CHANNEL, c4Endpoint(label, `thread:${threadId}`), formatted);
   });
 
   client.on('thread_status_changed', (msg) => {
@@ -209,7 +210,7 @@ for (const [label, org] of Object.entries(resolved.orgs)) {
     console.log(`${lp} Thread status changed: "${topic}" ${from} -> ${to}${by}`);
 
     const formatted = `[${dp} Thread:${threadId}] Thread "${topic}" status changed: ${from} -> ${to}${by}`;
-    sendToC4(channel, `thread:${threadId}`, formatted);
+    sendToC4(C4_CHANNEL, c4Endpoint(label, `thread:${threadId}`), formatted);
   });
 
   client.on('channel_deleted', (msg) => {

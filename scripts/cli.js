@@ -378,7 +378,7 @@ try {
             'rotate-secret': 'Rotate org secret',
           },
         },
-        note: 'Message sending goes through C4: c4-send.js "hxa-connect" "<bot|thread:id>" "msg"',
+        note: 'Message sending goes through C4: c4-send.js "hxa-connect" "[org:<label>|]<bot|thread:id>" "msg"',
       });
       break;
     }
