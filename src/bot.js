@@ -8,7 +8,7 @@
  */
 
 import { HxaConnectClient, ThreadContext } from '@coco-xyz/hxa-connect-sdk';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import path from 'path';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { migrateConfig, resolveOrgs, setupFetchProxy, PROXY_URL } from './env.js';
@@ -44,10 +44,9 @@ const wsOptions = PROXY_URL ? { agent: new HttpsProxyAgent(PROXY_URL) } : undefi
 
 function sendToC4(channel, endpoint, content) {
   if (!content) return;
-  const safeContent = content.replace(/'/g, "'\\''");
-  const cmd = `node "${C4_RECEIVE}" --channel "${channel}" --endpoint "${endpoint}" --json --content '${safeContent}'`;
+  const c4Args = [C4_RECEIVE, '--channel', channel, '--endpoint', endpoint, '--json', '--content', content];
 
-  exec(cmd, { encoding: 'utf8' }, (error, stdout) => {
+  execFile('node', c4Args, { encoding: 'utf8' }, (error, stdout) => {
     if (!error) {
       console.log(`[hxa-connect] -> C4: ${content.substring(0, 80)}...`);
       return;
@@ -61,7 +60,7 @@ function sendToC4(channel, endpoint, content) {
     } catch {}
     console.warn(`[hxa-connect] C4 send failed, retrying: ${error.message}`);
     setTimeout(() => {
-      exec(cmd, { encoding: 'utf8' }, (retryErr) => {
+      execFile('node', c4Args, { encoding: 'utf8' }, (retryErr) => {
         if (retryErr) console.error(`[hxa-connect] C4 retry failed: ${retryErr.message}`);
         else console.log(`[hxa-connect] -> C4 (retry): ${content.substring(0, 80)}...`);
       });
@@ -278,6 +277,7 @@ async function connectOrg(label, { client, threadCtx, config: org }) {
       console.error(`${lp} Connection attempt ${attempt} failed: ${err.message}`);
       if (attempt >= MAX_CONNECT_ATTEMPTS) {
         console.error(`${lp} Giving up after ${attempt} attempts`);
+        try { client.disconnect(); } catch {}
         connections.delete(label);
         return;
       }

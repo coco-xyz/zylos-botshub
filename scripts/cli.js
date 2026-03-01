@@ -12,10 +12,6 @@
 import { HxaConnectClient } from '@coco-xyz/hxa-connect-sdk';
 import { migrateConfig, resolveOrgs, setupFetchProxy } from '../src/env.js';
 
-const config = migrateConfig();
-const resolved = resolveOrgs(config);
-const orgLabels = Object.keys(resolved.orgs);
-
 const args = process.argv.slice(2);
 
 function getFlag(name) {
@@ -37,6 +33,15 @@ function fail(msg) {
   process.exit(1);
 }
 
+let config, resolved, orgLabels;
+try {
+  config = migrateConfig();
+  resolved = resolveOrgs(config);
+  orgLabels = Object.keys(resolved.orgs);
+} catch (err) {
+  fail(err.message);
+}
+
 const orgLabel = getFlag('org') || (resolved.orgs.default ? 'default' : orgLabels[0]);
 const org = resolved.orgs[orgLabel];
 if (!org) fail(`Org "${orgLabel}" not found. Available: ${orgLabels.join(', ')}`);
@@ -50,10 +55,17 @@ const client = new HxaConnectClient({
   orgId: org.orgId,
 });
 
+// Flags that take a value (skip next arg when encountered before command)
+const VALUE_FLAGS = new Set(['org']);
+
 // Find command: first positional arg (skip --flags and their values)
 let command, commandIdx;
 for (let i = 0; i < args.length; i++) {
-  if (args[i].startsWith('--')) { i++; continue; }
+  if (args[i].startsWith('--')) {
+    const flag = args[i].slice(2);
+    if (VALUE_FLAGS.has(flag)) i++; // skip value for known value-flags
+    continue;
+  }
   command = args[i];
   commandIdx = i;
   break;
