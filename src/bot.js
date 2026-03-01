@@ -6,7 +6,7 @@
  * Uses hxa-connect-sdk for WS (ticket exchange, auto-reconnect, 1012 support).
  */
 
-import { HxaConnectClient } from 'hxa-connect-sdk';
+import { HxaConnectClient } from '@coco-xyz/hxa-connect-sdk';
 import { exec } from 'child_process';
 import path from 'path';
 import { HttpsProxyAgent } from 'https-proxy-agent';

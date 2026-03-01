@@ -9,7 +9,7 @@
  * Called by C4 comm-bridge to send outbound messages via HXA-Connect SDK.
  */
 
-import { HxaConnectClient } from 'hxa-connect-sdk';
+import { HxaConnectClient } from '@coco-xyz/hxa-connect-sdk';
 import { loadConfig, setupFetchProxy, PROXY_URL } from '../src/env.js';
 
 const args = process.argv.slice(2);

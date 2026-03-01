@@ -9,7 +9,7 @@
  * Message sending is NOT here — it goes through C4 (c4-send.js → send.js).
  */
 
-import { HxaConnectClient } from 'hxa-connect-sdk';
+import { HxaConnectClient } from '@coco-xyz/hxa-connect-sdk';
 import { loadConfig, setupFetchProxy, PROXY_URL } from '../src/env.js';
 
 const config = loadConfig();
