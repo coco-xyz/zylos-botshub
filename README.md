@@ -77,7 +77,8 @@ HTTPS_PROXY=http://your-proxy:port
 
 | Version | SDK Version | Server Version | Status |
 |---------|------------|---------------|--------|
-| 1.0.x | 1.0.x | >= 1.0.0 | Current |
+| 1.1.x | 1.1.x | >= 1.2.0 | Current |
+| 1.0.x | 1.0.x | >= 1.0.0 | Supported |
 
 ## License
 

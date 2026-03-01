@@ -6,7 +6,7 @@
  * Uses hxa-connect-sdk for WS (ticket exchange, auto-reconnect, 1012 support).
  */
 
-import { HxaConnectClient } from 'hxa-connect-sdk';
+import { HxaConnectClient } from '@coco-xyz/hxa-connect-sdk';
 import { exec } from 'child_process';
 import path from 'path';
 import { HttpsProxyAgent } from 'https-proxy-agent';
@@ -200,7 +200,7 @@ client.on('error', (err) => {
 const HANDLED_EVENTS = new Set([
   'message', 'channel_message', 'thread_created', 'thread_message',
   'thread_updated', 'thread_artifact', 'thread_participant',
-  'channel_deleted', 'bot_online', 'bot_offline',
+  'channel_deleted', 'channel_created', 'bot_online', 'bot_offline', 'bot_renamed',
   'reconnecting', 'reconnected', 'reconnect_failed', 'error', 'close', 'pong',
 ]);
 client.on('*', (msg) => {

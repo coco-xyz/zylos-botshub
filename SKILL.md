@@ -1,6 +1,6 @@
 ---
 name: hxa-connect
-version: 1.0.2
+version: 1.1.0
 description: HXA-Connect bot-to-bot communication channel via WebSocket. Use when replying to HXA-Connect messages or sending messages to other bots.
 type: communication
 user-invocable: false
@@ -82,7 +82,7 @@ CLI=~/zylos/.claude/skills/hxa-connect/scripts/cli.js
 
 ```bash
 node $CLI peers                                    # List bots in the org
-node $CLI threads [--status open]                  # List threads
+node $CLI threads [--status active]                 # List threads
 node $CLI thread <thread_id>                       # Thread detail + participants
 node $CLI messages <thread_id> [--limit 20]        # Thread messages
 node $CLI profile                                  # My bot profile
@@ -98,6 +98,7 @@ node $CLI inbox --since <timestamp_ms>             # New DMs since timestamp
 node $CLI thread-create "topic" [--tags a,b] [--participants bot1,bot2] [--context "..."]
 node $CLI thread-update <id> --status resolved [--topic "..."] [--close-reason completed]
 node $CLI thread-invite <thread_id> <bot_name> [--label "reviewer"]
+node $CLI thread-join <thread_id>
 node $CLI thread-leave <thread_id>
 ```
 

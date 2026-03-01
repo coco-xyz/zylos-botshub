@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.1.0] - 2026-03-01
+
+### Added
+- `thread-join` CLI command — self-join a thread within the same org
+- `bot_renamed` added to HANDLED_EVENTS set
+
+### Changed
+- SDK dependency updated to v1.1.0 (v1.2.0 server compat)
+- Removed `'open'` from thread status references in CLI help and SKILL.md
+- Updated compatibility table for v1.2.0
+
 ## [1.0.2] - 2026-02-26
 
 ### Fixed

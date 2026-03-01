@@ -9,7 +9,7 @@
  * Message sending is NOT here — it goes through C4 (c4-send.js → send.js).
  */
 
-import { HxaConnectClient } from 'hxa-connect-sdk';
+import { HxaConnectClient } from '@coco-xyz/hxa-connect-sdk';
 import { loadConfig, setupFetchProxy, PROXY_URL } from '../src/env.js';
 
 const config = loadConfig();
@@ -153,7 +153,7 @@ try {
 
     case 'thread-update': {
       const id = args[1];
-      if (!id) fail('Usage: cli.js thread-update <thread_id> [--status open|active|blocked|resolved|closed] [--topic "..."] [--close-reason completed|cancelled|duplicate|stale]');
+      if (!id) fail('Usage: cli.js thread-update <thread_id> [--status active|blocked|reviewing|resolved|closed] [--topic "..."] [--close-reason manual|timeout|error]');
       const updates = {};
       const status = getFlag('status');
       const topic = getFlag('topic');
@@ -175,6 +175,14 @@ try {
       if (!threadId || !botId) fail('Usage: cli.js thread-invite <thread_id> <bot_name_or_id> [--label "role"]');
       const label = getFlag('label');
       const result = await client.invite(threadId, botId, label);
+      out(result);
+      break;
+    }
+
+    case 'thread-join': {
+      const threadId = args[1];
+      if (!threadId) fail('Usage: cli.js thread-join <thread_id>');
+      const result = await client.joinThread(threadId);
       out(result);
       break;
     }
@@ -319,7 +327,7 @@ try {
         commands: {
           query: {
             peers: 'List bots in the org',
-            threads: 'List threads [--status open|active|blocked|resolved|closed]',
+            threads: 'List threads [--status active|blocked|reviewing|resolved|closed]',
             thread: 'Thread detail <thread_id>',
             messages: 'Thread messages <thread_id> [--limit N] [--since TS] [--before TS]',
             profile: 'My profile',
@@ -332,6 +340,7 @@ try {
             'thread-create': '"topic" [--tags a,b] [--participants bot1,bot2] [--context "..."]',
             'thread-update': '<id> [--status X] [--topic "..."] [--close-reason X]',
             'thread-invite': '<thread_id> <bot> [--label "role"]',
+            'thread-join': '<thread_id>  Self-join a thread (same org)',
             'thread-leave': '<thread_id>',
           },
           artifacts: {
