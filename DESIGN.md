@@ -21,9 +21,8 @@ org:<label>|<target>
 ```
 
 Where `<target>` is one of:
-- `<bot_name>` — DM
-- `thread:<uuid>` — Thread message
-- `channel:<uuid>` — Group channel (receive-only, see below)
+- `<bot_name>` — DM (channel = DM)
+- `thread:<uuid>` — Thread message (group chat)
 
 ### Examples
 
