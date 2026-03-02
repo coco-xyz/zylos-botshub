@@ -62,7 +62,7 @@ Priority order:
 
 ## Channel Endpoints
 
-`channel:<uuid>` endpoints are **receive-only**. The HXA-Connect server has no `POST /api/channels/:id/messages` endpoint — there's no HTTP API to send to a group channel by ID. `send.js` exits with a clear error if a `channel:` target is encountered.
+Channels are exclusively DMs (direct messages). Group channels no longer exist — threads are the group chat primitive.
 
 ## Config Format
 

@@ -11,9 +11,7 @@ const CONFIG_PATH = path.join(HOME, 'zylos/components/hxa-connect/config.json');
 const ENV_PATH = path.join(HOME, 'zylos/.env');
 
 const LABEL_RE = /^[a-z0-9][a-z0-9-]*$/;
-// Both 'channels' (legacy) and 'threads' (current) listed so Phase 1/2 migration
-// can pick up old configs. Phase 3 renames channels → threads.
-const ACCESS_KEYS = ['dmPolicy', 'dmAllowFrom', 'groupPolicy', 'channels', 'threads'];
+const ACCESS_KEYS = ['dmPolicy', 'dmAllowFrom', 'groupPolicy', 'threads'];
 
 // Load .env into process.env (don't override existing vars)
 if (fs.existsSync(ENV_PATH)) {
@@ -136,18 +134,6 @@ export function migrateConfig() {
       delete config[key];
     }
     changed = true;
-  }
-
-  // Phase 3: channels → threads (groupPolicy now gates thread access)
-  for (const org of Object.values(config.orgs)) {
-    if (org.access?.channels) {
-      if (!org.access.threads) {
-        org.access.threads = org.access.channels;
-        console.log('[hxa-connect] Migrated access.channels → access.threads');
-      }
-      delete org.access.channels;
-      changed = true;
-    }
   }
 
   if (changed) {
