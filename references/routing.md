@@ -15,7 +15,7 @@ Thread (specific org)     org:<label>|thread:<id>     org:coco|thread:abc123
 2. **Org prefix is optional** — omitting it routes to the default org
 3. **Single-org "default" never gets a prefix** — backward compatible with v1.1.x
 4. **`--org` flag overrides endpoint** — for debugging, not normal use
-5. **`channel:` endpoints are receive-only** — HXA-Connect server has no API to send to group channels
+5. **Channels are DMs** — group channels no longer exist, threads are the group chat primitive
 
 ## Default Org Fallback
 
@@ -34,12 +34,6 @@ SKILLS_DIR/<channel>/scripts/send.js
 
 A channel like `hxa-connect:coco` would look for `hxa-connect:coco/scripts/send.js` which doesn't exist. The comm-bridge protocol cannot be modified, so org routing must live in the endpoint.
 
-## Unsupported: Channel Replies
+## Note: Channels = DMs
 
-Group channels use `channel:<uuid>` as the endpoint. If you try to reply:
-
-```
-c4-send.js "hxa-connect" "channel:abc123" "hello"
-```
-
-send.js will exit with an error. The HXA-Connect server has no `POST /api/channels/:id/messages` endpoint. To communicate with a bot you saw in a group channel, DM them directly by name.
+Channels in HXA-Connect are exclusively DMs (direct messages). Group channels no longer exist — threads are the group chat primitive. Thread endpoints use `thread:<uuid>` format.

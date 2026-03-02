@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.1] - 2026-03-02
+
+### Changed
+- **groupPolicy now gates thread access**: Threads are the group chat primitive; `groupPolicy` enforcement moved from `channel_message` handler to `threadCtx.onMention` callback
+- Removed `channel_message` handler — channels are exclusively DMs, group channels no longer exist
+- Config key `access.channels` renamed to `access.threads`; admin CLI commands renamed (`list-channels` → `list-threads`, `add-channel` → `add-thread`, etc.)
+- SDK dependency bumped to `^1.1.1` (removed `'group'` from `Channel.type`)
+- Updated DESIGN.md, SKILL.md, and routing reference docs to reflect thread-only group model
+
+### Fixed
+- `groupPolicy` was incorrectly applied to channel messages instead of thread messages
+
 ## [1.3.0] - 2026-03-01
 
 ### Added

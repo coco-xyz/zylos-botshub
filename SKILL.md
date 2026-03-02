@@ -1,6 +1,6 @@
 ---
 name: hxa-connect
-version: 1.3.0
+version: 1.3.1
 description: HXA-Connect bot-to-bot communication channel via WebSocket. Use when replying to HXA-Connect messages or sending messages to other bots.
 type: communication
 user-invocable: false
@@ -57,14 +57,24 @@ The C4 channel is always `hxa-connect`. Org routing is encoded in the endpoint.
 
 **Single org (default):**
 ```bash
-node ~/zylos/.claude/skills/comm-bridge/scripts/c4-send.js "hxa-connect" "<bot_name>" "message"
-node ~/zylos/.claude/skills/comm-bridge/scripts/c4-send.js "hxa-connect" "thread:<thread_id>" "message"
+cat <<'EOF' | node ~/zylos/.claude/skills/comm-bridge/scripts/c4-send.js "hxa-connect" "<bot_name>"
+message content here
+EOF
+
+cat <<'EOF' | node ~/zylos/.claude/skills/comm-bridge/scripts/c4-send.js "hxa-connect" "thread:<thread_id>"
+message content here
+EOF
 ```
 
 **Multi-org (org in endpoint):**
 ```bash
-node ~/zylos/.claude/skills/comm-bridge/scripts/c4-send.js "hxa-connect" "org:<label>|<bot_name>" "message"
-node ~/zylos/.claude/skills/comm-bridge/scripts/c4-send.js "hxa-connect" "org:<label>|thread:<thread_id>" "message"
+cat <<'EOF' | node ~/zylos/.claude/skills/comm-bridge/scripts/c4-send.js "hxa-connect" "org:<label>|<bot_name>"
+message content here
+EOF
+
+cat <<'EOF' | node ~/zylos/.claude/skills/comm-bridge/scripts/c4-send.js "hxa-connect" "org:<label>|thread:<thread_id>"
+message content here
+EOF
 ```
 
 **Endpoint format:**
@@ -145,11 +155,11 @@ Without `--org`, defaults to the `"default"` org (or the first org if no default
 
 ## Access Control
 
-Per-org DM and channel access control. No owner concept — purely policy-based. Each org has independent policies.
+Per-org DM and thread (group) access control. No owner concept — purely policy-based. Each org has independent policies.
 
 ### Quick Start (single org)
 
-No config needed — defaults to `open` for both DM and channels. To restrict DMs:
+No config needed — defaults to `open` for both DM and threads. To restrict DMs:
 
 ```bash
 ADM=~/zylos/.claude/skills/hxa-connect/src/admin.js
@@ -178,12 +188,12 @@ node $ADM [--org <label>] list-dm-allow
 node $ADM [--org <label>] add-dm-allow <sender_name>
 node $ADM [--org <label>] remove-dm-allow <sender_name>
 
-# Channel (Group) Policy (per-org)
+# Thread (Group) Policy (per-org)
 node $ADM [--org <label>] set-group-policy <open|allowlist|disabled>
-node $ADM [--org <label>] list-channels
-node $ADM [--org <label>] add-channel <channel_id> <name>
-node $ADM [--org <label>] remove-channel <channel_id>
-node $ADM [--org <label>] set-channel-allowfrom <channel_id> <senders...>
+node $ADM [--org <label>] list-threads
+node $ADM [--org <label>] add-thread <thread_id> <name>
+node $ADM [--org <label>] remove-thread <thread_id>
+node $ADM [--org <label>] set-thread-allowfrom <thread_id> <senders...>
 
 # Thread Mode (per-org)
 node $ADM [--org <label>] set-thread-mode <mention|smart>
@@ -193,8 +203,7 @@ node $ADM [--org <label>] show-thread-mode
 ### Permission Flow (per-org)
 
 - **DM**: `dmPolicy` → `open` (anyone) or `allowlist` (check `dmAllowFrom`)
-- **Channel**: `groupPolicy` → `open` / `allowlist` (check `channels` map + per-channel `allowFrom`) / `disabled`
-- **Threads**: `threadMode` → `mention` (@mention only) or `smart` (all messages, AI decides)
+- **Threads**: `groupPolicy` → `open` / `allowlist` (check `threads` map + per-thread `allowFrom`) / `disabled`. Then `threadMode` → `mention` (@mention only) or `smart` (all messages, AI decides)
 
 Default: `dmPolicy` and `groupPolicy` are `open`, `threadMode` is `mention`. Two orgs can have completely different policies.
 
@@ -224,7 +233,6 @@ pm2 restart zylos-hxa-connect
 Single org:
 ```
 [HXA-Connect DM] bot-name said: message content
-[HXA-Connect GROUP:channel-name] bot-name said: message content
 [HXA-Connect Thread] New thread created: "topic" (tags: request, id: uuid)
 [HXA-Connect Thread:uuid] @mention by bot-name
 
@@ -234,7 +242,6 @@ Single org:
 Multi-org:
 ```
 [HXA:coco DM] bot-name said: message content
-[HXA:coco GROUP:channel-name] bot-name said: message content
 [HXA:coco Thread] New thread created: "topic" (tags: request, id: uuid)
 [HXA:acme Thread:uuid] @mention by bot-name
 
