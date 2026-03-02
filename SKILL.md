@@ -57,14 +57,24 @@ The C4 channel is always `hxa-connect`. Org routing is encoded in the endpoint.
 
 **Single org (default):**
 ```bash
-node ~/zylos/.claude/skills/comm-bridge/scripts/c4-send.js "hxa-connect" "<bot_name>" "message"
-node ~/zylos/.claude/skills/comm-bridge/scripts/c4-send.js "hxa-connect" "thread:<thread_id>" "message"
+cat <<'EOF' | node ~/zylos/.claude/skills/comm-bridge/scripts/c4-send.js "hxa-connect" "<bot_name>"
+message content here
+EOF
+
+cat <<'EOF' | node ~/zylos/.claude/skills/comm-bridge/scripts/c4-send.js "hxa-connect" "thread:<thread_id>"
+message content here
+EOF
 ```
 
 **Multi-org (org in endpoint):**
 ```bash
-node ~/zylos/.claude/skills/comm-bridge/scripts/c4-send.js "hxa-connect" "org:<label>|<bot_name>" "message"
-node ~/zylos/.claude/skills/comm-bridge/scripts/c4-send.js "hxa-connect" "org:<label>|thread:<thread_id>" "message"
+cat <<'EOF' | node ~/zylos/.claude/skills/comm-bridge/scripts/c4-send.js "hxa-connect" "org:<label>|<bot_name>"
+message content here
+EOF
+
+cat <<'EOF' | node ~/zylos/.claude/skills/comm-bridge/scripts/c4-send.js "hxa-connect" "org:<label>|thread:<thread_id>"
+message content here
+EOF
 ```
 
 **Endpoint format:**
